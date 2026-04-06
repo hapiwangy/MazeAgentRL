@@ -12,10 +12,29 @@ import torch.optim as optim
 
 from A2C import A2CAgent, A2CNetwork
 from Maze import MazeEnv
-from OpenAILLM import OpenAILLM
 from REINFORCE import REINFORCEAgent, REINFORCENetwork
-from RewardEngine import RewardEngine
-from utils import plot_learning_curves, save_trajectory_gif
+from reward_manager import RewardManager
+from reward_config import (
+    DEFAULT_REWARD_MODE,
+    get_reward_mode_choices,
+)
+from utils import ensure_method_dirs, plot_learning_curves, save_trajectory_gif, set_global_seed
+
+
+def save_checkpoint(path, network, args, episode):
+    checkpoint = {
+        "algo": args.algo,
+        "reward_mode": args.reward_mode,
+        "maze_size": int(args.maze_size),
+        "episodes_trained": episode,
+        "lr": args.lr,
+        "entropy_coef": args.entropy_coef,
+        "max_steps": args.max_steps,
+        "seed": args.seed,
+        "run_name": args.run_name,
+        "model_state_dict": network.state_dict(),
+    }
+    torch.save(checkpoint, path)
 
 
 if __name__ == "__main__":
@@ -58,23 +77,83 @@ if __name__ == "__main__":
         default=1500,
         help="Number of training episodes.",
     )
-    parser.add_argument('--maze_size', 
-                        type=str, 
-                        default='9', 
-                        choices=['9', '25'], 
-                        help='size of the maze in current setting 9X9 or 25X25')
+    parser.add_argument(
+        "--maze_size",
+        type=str,
+        default="9",
+        choices=["9", "25"],
+        help="size of the maze in current setting 9X9 or 25X25",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for reproducible training runs.",
+    )
+    parser.add_argument(
+        "--run_name",
+        type=str,
+        default="default",
+        help="Optional tag to distinguish experiment outputs.",
+    )
+    parser.add_argument(
+        "--top_success_gifs",
+        type=int,
+        default=3,
+        help="Number of best successful trajectories to save as GIFs.",
+    )
+    parser.add_argument(
+        "--reward_mode",
+        type=str,
+        default=DEFAULT_REWARD_MODE,
+        choices=get_reward_mode_choices(),
+        help="Reward combination to use during training.",
+    )
     args = parser.parse_args()
+    set_global_seed(args.seed)
 
     # 2. Prepare the CSV log file.
-    os.makedirs("logs", exist_ok=True)
+    logs_dir = ensure_method_dirs("logs", args.algo)
+    checkpoints_dir = ensure_method_dirs("checkpoints", args.algo)
+    plots_dir = ensure_method_dirs("plots", args.algo)
+    gifs_dir = ensure_method_dirs("gifs", args.algo)
     run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_filename = f"logs/run_{args.algo}_size{args.maze_size}_lr{args.lr}_{run_timestamp}.csv"
+    run_tag = (
+        f"{args.run_name}_{args.algo}_{args.reward_mode}_size{args.maze_size}_"
+        f"lr{args.lr}_seed{args.seed}_{run_timestamp}"
+    )
+    log_filename = os.path.join(logs_dir, f"run_{run_tag}.csv")
+    checkpoint_filename = os.path.join(checkpoints_dir, f"{run_tag}.pt")
+    plot_filename = f"learning_curves_{run_tag}.png"
+    plot_filepath = os.path.join(plots_dir, plot_filename)
 
     with open(log_filename, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["Episode", "Maze_ID", "Maze_Size", "Steps", "Total_Reward", "Success", "Loss"])
+        writer.writerow(
+            [
+                "Episode",
+                "Maze_ID",
+                "Maze_Size",
+                "Steps",
+                "Total_Reward",
+                "Sparse_Reward",
+                "Dense_Reward",
+                "LLM_Reward",
+                "LLM_Range_Min",
+                "LLM_Range_Max",
+                "Success",
+                "Loss",
+                "Algo",
+                "Seed",
+                "Run_Name",
+                "Reward_Mode",
+            ]
+        )
 
     print(f"Training log will be written to: {log_filename}")
+    print(f"Checkpoint will be written to: {checkpoint_filename}")
+    print(f"Run seed: {args.seed}")
+    print(f"Reward mode: {args.reward_mode}")
 
     # 3. Load the maze dataset.
     if not os.path.exists(args.dataset):
@@ -95,8 +174,7 @@ if __name__ == "__main__":
         agent = REINFORCEAgent(network)
 
     optimizer = optim.Adam(network.parameters(), lr=args.lr)
-    reward_engine = RewardEngine()
-    llm_api = OpenAILLM(model_name="gpt-4o-mini")
+    reward_manager = RewardManager(args.reward_mode, llm_model_name="gpt-4o-mini")
 
     gamma = 0.99
     num_episodes = args.episodes
@@ -107,9 +185,9 @@ if __name__ == "__main__":
 
     print(
         f"Starting {args.algo} training for {num_episodes} episodes "
-        f"(lr={args.lr}, max_steps={args.max_steps}).\n"
+        f"(lr={args.lr}, max_steps={args.max_steps}, seed={args.seed}).\n"
     )
-    successful_gifs_saved = 0
+    successful_episodes = []
 
     for episode in range(1, num_episodes + 1):
         # Sample a maze instance for the current episode.
@@ -123,10 +201,15 @@ if __name__ == "__main__":
 
         obs, prev_info = env.reset()
         agent.reset_memory()
-        reward_engine.reset()
+        reward_manager.reset()
 
         log_probs, values, rewards, entropies = [], [], [], []
         episode_frames = [env.current_map.copy()]
+        episode_sparse_total = 0.0
+        episode_dense_total = 0.0
+        episode_llm_total = 0.0
+        episode_llm_min_total = 0.0
+        episode_llm_max_total = 0.0
 
         done = False
         while not done:
@@ -143,14 +226,18 @@ if __name__ == "__main__":
             frame[current_info["agent_pos"]] = 5
             episode_frames.append(frame)
 
-            dense_reward = reward_engine.compute_dense_reward(current_info, prev_info)
-            raw_llm_reward = llm_api.get_reward(current_info, prev_info)
-            bounded_llm_reward = reward_engine.apply_llm_bounds(raw_llm_reward)
-            total_step_reward = sparse_reward + dense_reward + bounded_llm_reward
+            total_step_reward, reward_components, llm_reward_range = reward_manager.compute_step_reward(
+                current_info, prev_info
+            )
 
             log_probs.append(log_prob)
             rewards.append(total_step_reward)
             entropies.append(entropy)
+            episode_sparse_total += reward_components["sparse"]
+            episode_dense_total += reward_components["dense"]
+            episode_llm_total += reward_components["llm"]
+            episode_llm_min_total += llm_reward_range["min"]
+            episode_llm_max_total += llm_reward_range["max"]
 
             obs = next_obs
             prev_info = current_info
@@ -202,31 +289,39 @@ if __name__ == "__main__":
                     maze_size,
                     episode_steps,
                     round(episode_reward, 4),
+                    round(episode_sparse_total, 4),
+                    round(episode_dense_total, 4),
+                    round(episode_llm_total, 4),
+                    round(episode_llm_min_total, 4),
+                    round(episode_llm_max_total, 4),
                     int(episode_success),
                     round(loss.item(), 4),
+                    args.algo,
+                    args.seed,
+                    args.run_name,
+                    args.reward_mode,
                 ]
             )
 
-        # Save a few successful trajectories for qualitative inspection.
-        if current_info["is_success"] and successful_gifs_saved < 3:
-            print(
-                f"\nEpisode {episode} solved a {maze_size}x{maze_size} maze. "
-                "Saving trajectory GIF..."
+        # Record successful trajectories and save only the best ones after training.
+        if current_info["is_success"]:
+            successful_episodes.append(
+                {
+                    "episode": episode,
+                    "maze_size": maze_size,
+                    "reward": episode_reward,
+                    "steps": episode_steps,
+                    "frames": [frame.copy() for frame in episode_frames],
+                }
             )
-            save_trajectory_gif(
-                episode_frames,
-                episode,
-                filename=f"traj_{args.algo}_SUCCESS_{maze_size}x{maze_size}_ep{episode}.gif",
-                fps=20,
-            )
-            successful_gifs_saved += 1
 
         if episode % 500 == 0:
             save_trajectory_gif(
                 episode_frames,
                 episode,
-                filename=f"traj_{args.algo}_{maze_size}x{maze_size}_ep{episode}.gif",
+                filename=f"traj_{run_tag}_{maze_size}x{maze_size}_ep{episode}.gif",
                 fps=15,
+                output_dir=gifs_dir,
             )
 
         if episode % 100 == 0:
@@ -238,9 +333,37 @@ if __name__ == "__main__":
                 f"Current Maze Size: {maze_size}x{maze_size}"
             )
 
-    plot_filename = f"plots/learning_curves_{args.algo}_size{args.maze_size}_{run_timestamp}.png"
-    plot_learning_curves(history_rewards, history_steps, history_successes, plot_filename)
+    if successful_episodes:
+        successful_episodes.sort(
+            key=lambda item: (-item["reward"], item["steps"], item["episode"])
+        )
+        best_successes = successful_episodes[: args.top_success_gifs]
+        print(f"\nSaving top {len(best_successes)} successful trajectory GIFs...")
+        for rank, result in enumerate(best_successes, start=1):
+            save_trajectory_gif(
+                result["frames"],
+                result["episode"],
+                filename=(
+                    f"best{rank}_{run_tag}_SUCCESS_{result['maze_size']}x"
+                    f"{result['maze_size']}_ep{result['episode']}_"
+                    f"reward{result['reward']:.2f}_steps{result['steps']}.gif"
+                ),
+                fps=20,
+                output_dir=gifs_dir,
+            )
+    else:
+        print("\nNo successful episodes were found, so no success GIFs were saved.")
+
+    plot_learning_curves(
+        history_rewards,
+        history_steps,
+        history_successes,
+        plot_filename,
+        output_dir=plots_dir,
+    )
+    save_checkpoint(checkpoint_filename, network, args, num_episodes)
     print(
         f"\nTraining completed. Learning curves were generated "
-        f"(default output path in plots/, run tag: {plot_filename})."
+        f"(output path: {plot_filepath})."
     )
+    print(f"Model checkpoint saved to: {checkpoint_filename}")

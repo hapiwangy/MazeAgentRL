@@ -1,12 +1,48 @@
 import os
+import random
 
 import matplotlib.animation as animation
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
 
-def save_trajectory_gif(frames, episode, filename="trajectory.gif", fps=50):
+def resolve_output_path(filename, output_dir):
+    """Return a writable path for outputs and ensure the parent directory exists."""
+    if os.path.isabs(filename) or os.path.dirname(filename):
+        filepath = filename
+    else:
+        filepath = os.path.join(output_dir, filename)
+
+    parent_dir = os.path.dirname(filepath)
+    if parent_dir:
+        os.makedirs(parent_dir, exist_ok=True)
+    return filepath
+
+
+def set_global_seed(seed):
+    """Set random seeds for reproducible experiments."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
+    if torch.backends.cudnn.is_available():
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+
+def ensure_method_dirs(base_dir, method_name):
+    """Create and return a method-specific output directory."""
+    method_dir = os.path.join(base_dir, method_name)
+    os.makedirs(method_dir, exist_ok=True)
+    return method_dir
+
+
+def save_trajectory_gif(frames, episode, filename="trajectory.gif", fps=50, output_dir="gifs"):
     """
     Save an episode trajectory as an animated GIF.
 
@@ -20,23 +56,31 @@ def save_trajectory_gif(frames, episode, filename="trajectory.gif", fps=50):
     norm = mcolors.BoundaryNorm(bounds, cmap.N)
 
     im = ax.imshow(frames[0], cmap=cmap, norm=norm)
-    ax.set_title(f"Episode {episode} Trajectory", fontsize=14)
+    total_steps = max(0, len(frames) - 1)
+    title = ax.set_title("", fontsize=14)
+
+    def _build_title(frame_idx):
+        current_step = min(frame_idx, total_steps)
+        status = "Finished" if frame_idx == len(frames) - 1 else "Running"
+        return f"Episode {episode} Trajectory | Step {current_step}/{total_steps} | {status}"
+
+    title.set_text(_build_title(0))
 
     def update(frame_idx):
         im.set_array(frames[frame_idx])
-        return [im]
+        title.set_text(_build_title(frame_idx))
+        return [im, title]
 
     interval = int(1000 / fps)
     ani = animation.FuncAnimation(fig, update, frames=len(frames), interval=interval, blit=True)
 
-    os.makedirs("gifs", exist_ok=True)
-    filepath = os.path.join("gifs", filename)
+    filepath = resolve_output_path(filename, output_dir)
     ani.save(filepath, writer="pillow", fps=fps)
     plt.close(fig)
     print(f"[*] Saved trajectory GIF to {filepath} ({fps} FPS)")
 
 
-def plot_learning_curves(rewards, steps, successes, plot_filename, window=50):
+def plot_learning_curves(rewards, steps, successes, plot_filename, window=50, output_dir="plots"):
     """
     Plot smoothed learning curves for reward, episode length, and success rate.
     """
@@ -66,8 +110,7 @@ def plot_learning_curves(rewards, steps, successes, plot_filename, window=50):
     axs[2].set_xlabel("Episodes")
 
     plt.tight_layout()
-    os.makedirs("plots", exist_ok=True)
-    filepath = os.path.join("plots", plot_filename)
+    filepath = resolve_output_path(plot_filename, output_dir)
     plt.savefig(filepath)
     plt.close(fig)
     print(f"[*] Saved learning curves to {filepath}")

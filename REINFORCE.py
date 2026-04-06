@@ -68,3 +68,18 @@ class REINFORCEAgent:
             log_prob.unsqueeze(0),
             distribution.entropy().unsqueeze(0),
         )
+
+    def act(self, obs, deterministic=False):
+        """Run inference and return only the chosen action."""
+        obs_tensor = torch.tensor(obs, dtype=torch.long).unsqueeze(0).unsqueeze(0)
+
+        logits, self.hidden_state = self.network(obs_tensor, self.hidden_state)
+
+        if deterministic:
+            action = torch.argmax(logits, dim=-1)
+        else:
+            probs = F.softmax(logits, dim=-1)
+            distribution = Categorical(probs)
+            action = distribution.sample()
+
+        return action.item()

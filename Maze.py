@@ -2,6 +2,8 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 
+from reward_config import SPARSE_REWARD_VALUES
+
 
 class MazeEnv(gym.Env):
     def __init__(self, maze_map, max_steps=100):
@@ -46,15 +48,22 @@ class MazeEnv(gym.Env):
         ):
             self.agent_pos = (row, col)
 
+        picked_key = False
+
         # Pick up the key when the agent reaches it.
         if self.agent_pos == self.key_pos and not self.has_key:
             self.has_key = True
+            picked_key = True
             self.current_map[self.key_pos] = 0
 
         is_success = (self.agent_pos == self.exit_pos) and self.has_key
         terminated = is_success
         truncated = self.current_step >= self.max_steps
-        reward = 1.0 if is_success else 0.0  # Sparse reward
+        reward = 0.0
+        if picked_key:
+            reward += SPARSE_REWARD_VALUES["key"]
+        if is_success:
+            reward += SPARSE_REWARD_VALUES["exit"]
 
         info = self._get_info()
         info["is_success"] = is_success

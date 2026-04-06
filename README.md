@@ -62,7 +62,7 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-If you use LLM reward during training, set your OpenAI API key first.
+If you use LLM reward during training, set your OpenAI API key first/ (or using other LLM instead).
 
 Linux / macOS:
 

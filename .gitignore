@@ -4,3 +4,5 @@ logs
 plots
 past result
 .env
+.venv
+**/__pycache__/

@@ -202,6 +202,7 @@ if __name__ == "__main__":
         obs, prev_info = env.reset()
         agent.reset_memory()
         reward_manager.reset()
+        reward_manager.reward_engine.initialize_episode(maze_grid, prev_info["key_pos"], prev_info["exit_pos"])
 
         log_probs, values, rewards, entropies = [], [], [], []
         episode_frames = [env.current_map.copy()]

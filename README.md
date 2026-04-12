@@ -1,58 +1,55 @@
 # MazeAgentRL
 
-MazeAgentRL is a reinforcement learning project for maze navigation under partial observability.  
-The agent must:
+MazeAgentRL is a reinforcement learning project for partially observable maze navigation.
 
-1. find the key
-2. pick up the key
-3. reach the exit
+In each maze, the agent must:
 
-The project currently supports:
+1. find the key,
+2. pick up the key,
+3. reach the exit.
 
-- `A2C`
-- `REINFORCE`
-- sparse reward
-- hand-crafted dense reward
-- LLM-based reward shaping
+The project currently includes:
 
-The repository also includes:
-
-- dataset generation
-- dataset inspection
-- training logs
-- learning-curve plots
-- trajectory GIF generation
+- two RL algorithms: `A2C` and `REINFORCE`
+- sparse reward from the environment
+- hand-designed dense reward shaping
+- optional LLM-based reward shaping
+- maze dataset generation
+- dataset visualization
+- training logs, checkpoints, plots, and GIFs
 - single-maze evaluation
 - full test-set batch evaluation
 
 ## 1. Project Structure
 
-Main files:
+Core files:
 
 - `main.py`: training entry point
 - `test_agent.py`: evaluate one maze with a trained checkpoint
-- `run_test.py`: convenient wrapper for single evaluation on `dataset/test.json`
-- `run_test_all.py`: batch evaluation on the full `dataset/test.json`
-- `Maze.py`: maze environment
-- `A2C.py`: A2C model and agent
-- `REINFORCE.py`: REINFORCE model and agent
-- `RewardEngine.py`: dense reward and bounded LLM reward sampling
-- `reward_manager.py`: combines sparse, dense, and LLM rewards
-- `reward_config.py`: reward modes and reward constants
-- `OpenAILLM.py`: OpenAI-based reward range generator with cache
-- `MazeGenerator.py`: generate train/val/test maze datasets
-- `inspect_dataset.py`: inspect mazes visually
-- `utils.py`: plotting, seeding, GIF saving
-- `BFS_solver.py`: BFS baseline for shortest-path style analysis
+- `run_test.py`: wrapper for single-maze evaluation
+- `run_test_all.py`: evaluate a checkpoint on all mazes of one size in a dataset
+- `Maze.py`: Gymnasium maze environment
+- `A2C.py`: A2C network and agent
+- `REINFORCE.py`: REINFORCE network and agent
+- `RewardEngine.py`: sparse / dense / bounded LLM reward logic
+- `reward_manager.py`: reward pipeline that combines reward components
+- `reward_config.py`: reward constants and valid reward modes
+- `OpenAILLM.py`: OpenAI-based reward range generator with local cache
+- `MazeGenerator.py`: generate train / validation / test maze datasets
+- `inspect_dataset.py`: save sample maze images for inspection
+- `BFS_solver.py`: shortest-path baseline analysis
+- `utils.py`: seeding, output-directory helpers, plotting, and GIF export
 
-Common output folders:
+Generated or commonly used folders:
 
 - `dataset/`: generated maze datasets
-- `logs/`: training CSV logs
+- `dataset_images/`: PNG visualizations from `inspect_dataset.py`
+- `logs/`: per-episode CSV training logs
 - `checkpoints/`: saved model checkpoints
-- `plots/`: learning-curve figures
-- `gifs/`: training and evaluation GIFs
+- `plots/`: training curve figures
+- `gifs/`: training and evaluation trajectory GIFs
 - `eval_results/`: evaluation CSV outputs
+- `llm_cache.json`: cache of LLM reward responses
 
 ## 2. Environment Setup
 
@@ -62,7 +59,16 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-If you use LLM reward during training, set your OpenAI API key first/ (or using other LLM instead).
+Current `requirements.txt` contains:
+
+- `torch`
+- `gymnasium`
+- `numpy`
+- `matplotlib`
+- `pillow`
+- `openai`
+
+If you use any reward mode that includes `llm`, you must set `OPENAI_API_KEY` before training.
 
 Linux / macOS:
 
@@ -76,45 +82,25 @@ Windows PowerShell:
 $env:OPENAI_API_KEY="your_api_key"
 ```
 
-## 3. Dataset Generation and Inspection
+Notes:
 
-Generate train / validation / test datasets:
+- LLM reward is only used during training.
+- Evaluation scripts do not call the LLM.
 
-```bash
-python MazeGenerator.py
-```
+## 3. Problem Setting
 
-Inspect sampled mazes:
+### Partial observability
 
-```bash
-python inspect_dataset.py
-```
+The environment is partially observable. The agent only receives a local `3 x 3` observation centered on itself.
 
-Generated dataset files:
-
-- `dataset/train.json`
-- `dataset/val.json`
-- `dataset/test.json`
-
-Each maze record contains at least:
-
-- maze id
-- maze size
-- maze grid
-
-## 4. Problem Setting
-
-The maze is partially observable.  
-The agent only sees a local `3 x 3` observation centered on itself.
-
-Tile encoding:
+Observation tile encoding:
 
 - `0`: path
 - `1`: wall
 - `2`: start
 - `3`: exit
 - `4`: key
-- `5`: agent marker in observation / GIF rendering
+- `5`: agent
 
 Action encoding:
 
@@ -123,61 +109,156 @@ Action encoding:
 - `2`: left
 - `3`: right
 
-Episode termination:
+Episode ending conditions:
 
-- success: the agent reaches the exit after obtaining the key
-- truncation: the agent hits `max_steps`
+- `terminated`: the agent reaches the exit after obtaining the key
+- `truncated`: the agent reaches `max_steps`
 
-## 5. Reward Design
+### Environment reward
 
-The training reward can combine three sources:
+`MazeEnv` itself provides sparse reward only:
+
+- `+1.0` when the key is picked up
+- `+5.0` when the agent reaches the exit after picking up the key
+
+During training, `main.py` may add dense reward and LLM reward on top of this sparse reward through `RewardManager`.
+
+## 4. Dataset Generation
+
+Generate the default datasets:
+
+```bash
+python MazeGenerator.py
+```
+
+This script does two things:
+
+1. prints one sample `9x9` maze in the terminal
+2. builds:
+   - `dataset/train.json`
+   - `dataset/val.json`
+   - `dataset/test.json`
+
+Default split sizes in the current code:
+
+- train: `1000`
+- val: `200`
+- test: `200`
+
+Current generation behavior:
+
+- maze sizes are `9` and `25`
+- the first half of each split is `9x9`, the second half is `25x25`
+- generation alternates between `dfs` and `prim`
+- random seeds are fixed in the script for reproducibility
+
+Each maze record currently has these fields:
+
+- `id`: maze identifier such as `train_0`
+- `size`: maze size, currently `9` or `25`
+- `algo`: generator type, `dfs` or `prim`
+- `grid`: 2D maze grid
+
+Grid encoding:
+
+- `0`: path
+- `1`: wall
+- `2`: start
+- `3`: exit
+- `4`: key
+
+The generator validates solvability with the required order:
+
+`start -> key -> exit`
+
+## 5. Dataset Inspection
+
+Visualize random samples from the generated dataset:
+
+```bash
+python inspect_dataset.py
+```
+
+The current script saves:
+
+- 5 random mazes from `dataset/train.json` to `dataset_images/train/`
+- 3 random mazes from `dataset/val.json` to `dataset_images/val/`
+
+Each maze is exported as a PNG file named by maze id.
+
+## 6. Reward Design
+
+Training reward is computed as:
 
 ```text
-total_step_reward = sparse_reward + dense_reward + llm_reward
+total_step_reward = selected combination of sparse / dense / llm components
 ```
+
+The exact combination depends on `--reward_mode`.
+
+### Supported reward modes
+
+The current valid `--reward_mode` choices are:
+
+- `sparse`
+- `dense`
+- `llm`
+- `sparse_dense`
+- `dense_llm`
+- `sparse_llm`
+- `sparse_dense_llm`
+
+Current default:
+
+- `sparse_dense_llm`
 
 ### Sparse reward
 
-Environment milestone reward:
+Defined by `MazeEnv` and reused in `RewardEngine`:
 
-- reward when the key is picked up
-- reward when the exit is reached after collecting the key
+- key pickup: `+1.0`
+- successful exit: `+5.0`
 
 ### Dense reward
 
-Defined in `RewardEngine.py`. It includes:
+Defined in `RewardEngine.py`.
 
-- step penalty
-- revisit penalty
-- progress bonus based on weighted distance to the current target
+It currently includes:
 
-Current target rule:
+- step penalty: `-0.02`
+- revisit penalty: `-0.03`
+- progress bonus scaled by `0.12`
 
-- before key pickup: target is the key
-- after key pickup: target is the exit
+Important detail:
+
+- progress is computed from BFS path-distance maps, not Manhattan distance
+- before picking up the key, the weighted target is mainly the key
+- after picking up the key, the target switches to the exit
+- when the key is picked up, the visited set is cleared so the post-key phase starts fresh
 
 ### LLM reward
 
-Defined through `OpenAILLM.py` and `RewardEngine.py`.
+Defined by `OpenAILLM.py` and `RewardEngine.py`.
 
-The LLM:
+Current behavior:
 
-- observes the full maze state as text
-- compares previous position and current position
-- estimates whether the agent moved closer to the current goal
-- returns a bounded reward range
+- enabled only when the selected reward mode contains `llm`
+- `OpenAILLM` sends the full maze state, previous position, current position, and current goal to the OpenAI API
+- the model returns a JSON reward range
+- `RewardEngine` clips that range to configured bounds and samples one scalar reward
+- per-step range is clipped to `[-0.05, 0.5]`
+- episode-level absolute LLM reward budget is capped to `5.0 * 0.49 = 2.45`
+- responses are cached in `llm_cache.json`
 
-Then the reward engine:
+One implementation detail to be aware of:
 
-- clips the range
-- samples one scalar value from the range
-- enforces an episode-level LLM reward budget
+- the prompt asks the LLM to reason with Manhattan distance, while the hand-designed dense reward uses BFS path distance
 
-## 6. Training
+## 7. Training
 
-Training is done with `main.py`.
+Train with `main.py`.
 
-### Basic training command
+### Example commands
 
 Train `A2C` on `9x9` mazes:
 
@@ -191,49 +272,51 @@ Train `REINFORCE` on `9x9` mazes:
 python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 1500
 ```
 
-Example with explicit run name and reward mode:
+Train with an explicit reward mode and run name:
 
 ```bash
 python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 1500 --reward_mode sparse_dense_llm --run_name exp_reward_compare
 ```
 
-### Training options
+### Main arguments
 
-`main.py` supports these main arguments:
+- `--algo`: `A2C` or `REINFORCE`
+- `--dataset`: training dataset path, default `dataset/train.json`
+- `--lr`: learning rate, default `0.001`
+- `--entropy_coef`: entropy regularization coefficient, default `0.05`
+- `--max_steps`: max steps per episode, default `500`
+- `--episodes`: number of training episodes, default `1500`
+- `--maze_size`: maze size filter, choices `9` or `25`, default `9`
+- `--seed`: random seed, default `42`
+- `--run_name`: output tag, default `default`
+- `--top_success_gifs`: number of best successful trajectories to export after training, default `3`
+- `--reward_mode`: reward combination mode, default `sparse_dense_llm`
 
-- `--algo`: training algorithm, choices: `A2C`, `REINFORCE`
-- `--dataset`: training dataset path, default: `dataset/train.json`
-- `--lr`: learning rate
-- `--entropy_coef`: entropy regularization coefficient
-- `--max_steps`: maximum steps allowed per episode
-- `--episodes`: number of training episodes
-- `--maze_size`: maze size filter, choices: `9`, `25`
-- `--seed`: random seed
-- `--run_name`: custom tag for output files
-- `--top_success_gifs`: number of best successful training trajectories to save as GIFs
-- `--reward_mode`: reward combination mode, choices come from `reward_config.py`
+### What the training script actually does
 
-### Reward mode
+- loads the dataset JSON
+- filters mazes by `--maze_size`
+- samples one maze uniformly at random per episode
+- resets recurrent memory at the beginning of each episode
+- logs one CSV row per episode
+- saves one checkpoint at the end of training
+- saves a learning-curve figure at the end of training
+- saves one trajectory GIF every `500` episodes
+- saves the top successful GIFs at the end, ranked by:
+  - higher total reward first
+  - fewer steps next
+  - earlier episode index next
 
-The exact choices are defined in `reward_config.py`.  
-Typical usage is to compare different reward combinations such as:
+### Training outputs
 
-- sparse only
-- sparse + dense
-- sparse + dense + llm
+For algorithm `<algo>`, outputs are written to:
 
-You should check `reward_config.py` if you want the full current list of allowed mode names.
+- `logs/<algo>/`
+- `checkpoints/<algo>/`
+- `plots/<algo>/`
+- `gifs/<algo>/`
 
-### What training produces
-
-Training will generate:
-
-- CSV logs in `logs/<algo>/`
-- checkpoint `.pt` files in `checkpoints/<algo>/`
-- learning curves in `plots/<algo>/`
-- trajectory GIFs in `gifs/<algo>/`
-
-The training CSV includes fields such as:
+The training CSV columns are:
 
 - `Episode`
 - `Maze_ID`
@@ -252,22 +335,40 @@ The training CSV includes fields such as:
 - `Run_Name`
 - `Reward_Mode`
 
-## 7. Testing One Maze
+Checkpoint metadata currently includes:
 
-If you already have a trained checkpoint and want to test it on one maze, use `test_agent.py`.
+- algorithm
+- reward mode
+- maze size
+- number of episodes trained
+- learning rate
+- entropy coefficient
+- max steps
+- seed
+- run name
+- model weights
 
-### Basic single-maze test
+## 8. Single-Maze Evaluation
+
+Use `test_agent.py` to evaluate one maze with a trained checkpoint.
+
+### Important behavior
+
+- evaluation uses the environment reward only, which is sparse reward
+- dense reward and LLM reward are not recomputed during evaluation
+- if `--maze_id` is omitted, one maze is chosen randomly from the selected size
+- if `--maze_size`, `--max_steps`, or `--seed` are omitted, values are taken from the checkpoint when available
+
+### Example commands
 
 ```bash
 python test_agent.py --checkpoint checkpoints/REINFORCE/your_model.pt --dataset dataset/test.json --deterministic --save_gif
 ```
 
-### Common single-maze test examples
-
-Test a specific maze id:
+Evaluate a specific maze:
 
 ```bash
-python test_agent.py --checkpoint checkpoints/REINFORCE/your_model.pt --dataset dataset/test.json --maze_id 81 --deterministic --save_gif
+python test_agent.py --checkpoint checkpoints/REINFORCE/your_model.pt --dataset dataset/test.json --maze_id test_81 --deterministic --save_gif
 ```
 
 Override maze size:
@@ -276,27 +377,21 @@ Override maze size:
 python test_agent.py --checkpoint checkpoints/REINFORCE/your_model.pt --dataset dataset/test.json --maze_size 9 --deterministic
 ```
 
-Override evaluation seed:
+### Arguments
 
-```bash
-python test_agent.py --checkpoint checkpoints/REINFORCE/your_model.pt --dataset dataset/test.json --seed 42 --deterministic
-```
+- `--checkpoint`: required checkpoint path
+- `--dataset`: evaluation dataset path, default `dataset/test.json`
+- `--maze_size`: optional size filter, otherwise use checkpoint metadata
+- `--maze_id`: optional maze id string
+- `--max_steps`: optional max-step override, otherwise use checkpoint metadata
+- `--deterministic`: use greedy argmax action selection
+- `--save_gif`: save one evaluation GIF
+- `--seed`: optional evaluation seed override, otherwise use checkpoint seed or `42`
+- `--run_name`: output tag, default `eval`
 
-### Single-maze test options
+### Outputs
 
-- `--checkpoint`: path to a trained `.pt` checkpoint, required
-- `--dataset`: evaluation dataset path, default: `dataset/test.json`
-- `--maze_size`: override maze size; if omitted, use checkpoint metadata
-- `--maze_id`: evaluate one specific maze id
-- `--max_steps`: override max steps; if omitted, use checkpoint metadata
-- `--deterministic`: use argmax action selection instead of sampling
-- `--save_gif`: save the trajectory as a GIF
-- `--seed`: override evaluation seed
-- `--run_name`: tag for evaluation output file names
-
-### Single-maze outputs
-
-`test_agent.py` prints:
+Printed summary includes:
 
 - checkpoint path
 - algorithm
@@ -304,231 +399,206 @@ python test_agent.py --checkpoint checkpoints/REINFORCE/your_model.pt --dataset 
 - evaluation seed
 - maze id
 - maze size
-- whether deterministic mode is used
-- steps
-- success / failure
+- whether deterministic mode is enabled
+- number of steps
+- success or failure
 - sparse reward sum
 
-It also saves:
+Saved files:
 
 - one CSV under `eval_results/<algo>/`
-- one GIF under `gifs/<algo>/` if `--save_gif` is enabled
+- one GIF under `gifs/<algo>/` when `--save_gif` is enabled
 
-## 8. Convenient Single Test Wrapper
+## 9. `run_test.py` Wrapper
 
-If you do not want to manually type the checkpoint path every time, use `run_test.py`.
+`run_test.py` is a convenience wrapper around `test_agent.py`.
 
-It automatically:
+Current behavior:
 
 - defaults to `dataset/test.json`
-- finds the latest checkpoint under `checkpoints/` if you do not provide one
+- if `--checkpoint` is omitted, it finds the latest `.pt` file under `checkpoints/*/`
+- forwards all selected arguments to `test_agent.py`
 
-### Example
+Example:
 
 ```bash
 python run_test.py --deterministic --save_gif
 ```
 
-Specify a particular checkpoint:
+Use a specific checkpoint:
 
 ```bash
-python run_test.py --checkpoint "checkpoints/REINFORCE/your_model.pt" --maze_id 81 --deterministic --save_gif
+python run_test.py --checkpoint checkpoints/REINFORCE/your_model.pt --maze_id test_81 --deterministic --save_gif
 ```
 
-### `run_test.py` options
+Supported arguments:
 
-- `--checkpoint`: optional checkpoint path
-- `--dataset`: evaluation dataset path, default: `dataset/test.json`
-- `--maze_id`: optional maze id
-- `--maze_size`: optional maze size override
-- `--max_steps`: optional max-step override
-- `--seed`: optional evaluation seed override
-- `--run_name`: output tag
-- `--deterministic`: use greedy action selection
-- `--save_gif`: save one evaluation GIF
+- `--checkpoint`
+- `--dataset`
+- `--maze_id`
+- `--maze_size`
+- `--max_steps`
+- `--seed`
+- `--run_name`
+- `--deterministic`
+- `--save_gif`
 
-## 9. Batch Testing the Full Test Set
+## 10. Batch Evaluation
 
-If you want to evaluate your trained model on all mazes in `dataset/test.json`, use `run_test_all.py`.
+Use `run_test_all.py` to evaluate one checkpoint on all mazes of the selected size in a dataset.
 
-### Basic batch evaluation
+### Important behavior
+
+- evaluation is filtered by one maze size only
+- if `--maze_size` is omitted, the script uses the checkpoint's stored maze size
+- evaluation reward is sparse reward only
+- one detailed CSV and one summary CSV are always saved
+- GIF export is optional and saves one GIF per maze
+
+### Example commands
+
+Basic batch evaluation:
 
 ```bash
 python run_test_all.py --deterministic
 ```
 
-### Batch evaluation with GIFs
+Batch evaluation with GIFs:
 
 ```bash
 python run_test_all.py --deterministic --save_gifs
 ```
 
-### Batch evaluation with explicit checkpoint
+Batch evaluation with explicit checkpoint:
 
 ```bash
-python run_test_all.py --checkpoint "checkpoints/REINFORCE/your_model.pt" --maze_size 9 --deterministic
+python run_test_all.py --checkpoint checkpoints/REINFORCE/your_model.pt --maze_size 9 --deterministic
 ```
 
-### `run_test_all.py` options
+### Arguments
 
 - `--checkpoint`: optional checkpoint path
-- `--dataset`: evaluation dataset path, default: `dataset/test.json`
-- `--maze_size`: optional maze size filter; default comes from checkpoint
-- `--max_steps`: optional max-step override
-- `--seed`: optional evaluation seed override
-- `--run_name`: output tag
-- `--deterministic`: use greedy action selection
-- `--save_gifs`: save one GIF per maze
+- `--dataset`: evaluation dataset path, default `dataset/test.json`
+- `--maze_size`: optional maze size filter, otherwise use checkpoint metadata
+- `--max_steps`: optional max-step override, otherwise use checkpoint metadata
+- `--seed`: optional evaluation seed override, otherwise use checkpoint seed or `42`
+- `--run_name`: output tag, default `eval_test_all`
+- `--deterministic`: use greedy argmax action selection
+- `--save_gifs`: save one GIF for every evaluated maze
 
-### Batch evaluation outputs
+### Output files
 
-`run_test_all.py` saves:
+Saved under `eval_results/<algo>/`:
 
-- one detailed CSV for every maze result
-- one summary CSV with aggregate metrics
-- optional GIFs for all evaluated mazes
+- detail CSV: one row per maze
+- summary CSV: aggregate metrics for the run
 
-Typical summary metrics:
+Summary metrics currently include:
 
 - number of mazes
 - success rate
 - average steps
 - average sparse reward
-- average steps on successful episodes
+- average steps on successful mazes
 
-## 10. GIF Visualization
+## 11. GIF Visualization
 
 Trajectory GIFs are generated by `utils.py`.
 
-Current GIF behavior:
+Current rendering behavior:
 
-- shows the maze trajectory frame by frame
-- shows the current step index
-- shows the total number of steps
-- shows whether the episode is still `Running` or already `Finished`
+- path: white
+- wall: black
+- start: blue
+- exit: green
+- key: gold
+- agent: red
 
-This makes it easier to see:
+GIF title text shows:
 
-- how far the agent has progressed
-- whether the agent solved the maze
-- whether the GIF ended because the trajectory finished
+- episode or maze id label
+- current step and total steps
+- `Running` or `Finished`
 
-## 11. Model Details
+Training GIF frequency:
 
-### Shared design
+- every `500` episodes during training
+- plus the top successful episodes saved at the end
 
-Both `A2C` and `REINFORCE` use:
+Evaluation GIF frequency:
 
-- symbolic observation embedding
-- flattened `3 x 3` local view
-- `GRU` recurrent memory
+- optional, controlled by `--save_gif` or `--save_gifs`
 
-This design is important because the environment is partially observable and the agent cannot see the full maze at once.
+## 12. Model Details
+
+Both policies use the same observation pipeline:
+
+- the `3 x 3` symbolic observation is embedded with `nn.Embedding`
+- the embedded grid is flattened
+- a `GRU` stores recurrent memory across time steps
+
+This recurrent design is important because the environment is partially observable.
 
 ### A2C
 
-`A2C` includes:
+`A2C` contains:
 
-- actor head
-- critic head
-- entropy regularization
+- policy head
+- value head
+- entropy regularization during training
 
-It generally provides lower-variance updates because it uses a value function baseline.
+Loss structure:
+
+- actor loss
+- critic MSE loss
+- entropy bonus
 
 ### REINFORCE
 
-`REINFORCE` includes:
+`REINFORCE` contains:
 
 - policy head only
 - normalized discounted returns
-- entropy regularization
+- entropy regularization during training
 
-It is simpler and serves as a useful baseline for comparison.
+## 13. BFS Baseline
 
-## 12. Other Functions in This Project
+`BFS_solver.py` provides a shortest-path reference for the ordered objective:
 
-Besides training and testing, the project also provides several useful utilities.
+`start -> key -> exit`
 
-### `MazeGenerator.py`
+It returns:
 
-Generates random mazes for:
+- steps from start to key
+- steps from key to exit
+- total optimal steps
 
-- training
-- validation
-- testing
+This is useful for error analysis and for comparing learned behavior with shortest valid paths.
 
-Useful when:
+## 14. Typical Workflow
 
-- you want more mazes
-- you want to regenerate a new dataset split
-- you want to compare different random map sets
-
-### `inspect_dataset.py`
-
-Visual inspection tool for generated mazes.
-
-Useful when:
-
-- you want to check whether start / key / exit placement is reasonable
-- you want to inspect maze difficulty
-- you want to verify that generation worked correctly
-
-### `BFS_solver.py`
-
-Provides a BFS baseline.
-
-Useful when:
-
-- you want an approximate classical baseline
-- you want to compare RL behavior against shortest-path style planning
-- you want to analyze whether the learned agent is close to optimal on simple mazes
-
-### `llm_cache.json`
-
-Stores LLM reward results for repeated transitions.
-
-Useful when:
-
-- you want to reduce repeated API calls
-- you want to reduce cost
-- you want more stable reward reuse across repeated transitions
-
-## 13. Typical Workflow
-
-Recommended end-to-end workflow:
+Recommended workflow:
 
 1. install dependencies
-2. set `OPENAI_API_KEY` if using LLM reward
-3. generate dataset with `MazeGenerator.py`
-4. inspect mazes with `inspect_dataset.py`
-5. train with `main.py`
-6. test one maze with `test_agent.py` or `run_test.py`
-7. test the full test set with `run_test_all.py`
+2. set `OPENAI_API_KEY` if you plan to use any `llm` reward mode
+3. generate datasets with `python MazeGenerator.py`
+4. inspect sample mazes with `python inspect_dataset.py`
+5. train with `python main.py ...`
+6. evaluate one maze with `python test_agent.py ...` or `python run_test.py ...`
+7. evaluate the full test subset for one maze size with `python run_test_all.py ...`
 8. analyze CSV logs, plots, and GIFs
 
-## 14. Notes and Limitations
+## 15. Notes and Limitations
 
-- `test_agent.py` and the test wrappers evaluate environment reward behavior, mainly sparse task completion behavior.
-- To load a checkpoint successfully, the model architecture must match the checkpoint.
-- If you modify the network architecture in `A2C.py` or `REINFORCE.py`, old checkpoints may no longer load.
-- LLM reward is used during training, not for direct action generation during testing.
-- If you use old cached LLM reward values, `llm_cache.json` format may affect whether logged LLM min/max look like a true range or a point value.
+- `main.py` only trains on one maze size per run because it filters the dataset by `--maze_size`.
+- `test_agent.py` and `run_test_all.py` report sparse environment reward, not dense reward and not LLM reward.
+- Any reward mode containing `llm` requires a valid OpenAI API key during training.
+- LLM reward calls can be slow and may increase training cost.
+- `llm_cache.json` may contain either older point-value entries or newer range-style entries; `OpenAILLM.py` normalizes both formats when loading.
+- If you change the network architecture in `A2C.py` or `REINFORCE.py`, old checkpoints may fail to load.
+- The current code stores only one checkpoint at the end of training, not intermediate checkpoints.
 
-## 15. Summary
-
-This project is a complete RL training and evaluation pipeline for partially observable maze navigation.
-
-It supports:
-
-- dataset generation
-- reward-ablation style training
-- checkpoint saving
-- single-maze evaluation
-- full test-set evaluation
-- trajectory GIF visualization
-- plot and CSV based analysis
-
-If your goal is just to start quickly, use these three commands:
+## 16. Quick Start
 
 Train:
 
@@ -536,13 +606,13 @@ Train:
 python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 1500 --reward_mode sparse_dense_llm --run_name exp1
 ```
 
-Test one maze:
+Evaluate one maze:
 
 ```bash
 python run_test.py --deterministic --save_gif
 ```
 
-Test the whole test set:
+Evaluate the whole test subset of one maze size:
 
 ```bash
 python run_test_all.py --deterministic

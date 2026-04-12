@@ -74,7 +74,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--episodes",
         type=int,
-        default=1500,
+        default=2000,
         help="Number of training episodes.",
     )
     parser.add_argument(
@@ -181,6 +181,7 @@ if __name__ == "__main__":
 
     history_rewards = []
     history_steps = []
+    history_keys = []
     history_successes = []
 
     print(
@@ -215,10 +216,10 @@ if __name__ == "__main__":
         done = False
         while not done:
             if args.algo == "A2C":
-                action, log_prob, value, entropy = agent.select_action(obs)
+                action, log_prob, value, entropy = agent.select_action(obs, prev_info["has_key"])
                 values.append(value)
             else:
-                action, log_prob, entropy = agent.select_action(obs)
+                action, log_prob, entropy = agent.select_action(obs, prev_info["has_key"])
 
             next_obs, sparse_reward, terminated, truncated, current_info = env.step(action)
             done = terminated or truncated
@@ -273,12 +274,14 @@ if __name__ == "__main__":
         optimizer.step()
 
         # Record episode statistics.
+        episode_key_acquired = 1.0 if current_info.get("has_key", False) else 0.0
         episode_reward = sum(rewards)
         episode_steps = env.current_step
         episode_success = 1.0 if current_info["is_success"] else 0.0
 
         history_rewards.append(episode_reward)
         history_steps.append(episode_steps)
+        history_keys.append(episode_key_acquired)
         history_successes.append(episode_success)
 
         with open(log_filename, mode="a", newline="", encoding="utf-8") as f:
@@ -327,9 +330,11 @@ if __name__ == "__main__":
 
         if episode % 100 == 0:
             avg_reward = np.mean(history_rewards[-100:])
+            avg_keys = np.mean(history_keys[-100:])
             avg_success = np.mean(history_successes[-100:])
             print(
                 f"Episode {episode:4d} | Avg Reward: {avg_reward:.2f} | "
+                f"Key Rate: {avg_keys * 100:.1f}% | "
                 f"Success Rate: {avg_success * 100:.1f}% | Loss: {loss.item():.4f} | "
                 f"Current Maze Size: {maze_size}x{maze_size}"
             )

@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-
 class A2CNetwork(nn.Module):
     def __init__(self, obs_shape=(3, 3), num_actions=4, hidden_size=64):
         super(A2CNetwork, self).__init__()
@@ -11,61 +10,60 @@ class A2CNetwork(nn.Module):
         self.hidden_size = hidden_size
 
         # 1. Observation encoder
-        # The local view is a 3x3 integer grid (0 to 5), embedded into continuous vectors.
-        num_classes = 6  # 0: path, 1: wall, 2: start, 3: exit, 4: key, 5: agent
+        # Map grid values (0-5) to continuous vectors
+        num_classes = 6  
         embedding_dim = 8
         self.embedding = nn.Embedding(num_embeddings=num_classes, embedding_dim=embedding_dim)
 
         # Flattened dimension: 3 * 3 * 8 = 72
         flattened_dim = obs_shape[0] * obs_shape[1] * embedding_dim
 
-        # 2. Recurrent layer
-        # Stores trajectory history to handle partial observability.
-        self.gru = nn.GRU(input_size=flattened_dim, hidden_size=hidden_size, batch_first=True)
+        # 2. Recurrent layer (GRU)
+        # We add +1 to the input size to account for the 'has_key' boolean flag
+        self.gru = nn.GRU(input_size=flattened_dim + 1, hidden_size=hidden_size, batch_first=True)
 
-        # 3. Actor network
-        # Outputs action logits for 4 actions.
+        # 3. Actor network (Policy)
         self.actor = nn.Sequential(
             nn.Linear(hidden_size, 32),
             nn.ReLU(),
             nn.Linear(32, num_actions),
         )
 
-        # 4. Critic network
-        # Outputs a scalar value estimate for the current state.
+        # 4. Critic network (Value)
         self.critic = nn.Sequential(
             nn.Linear(hidden_size, 32),
             nn.ReLU(),
             nn.Linear(32, 1),
         )
 
-    def forward(self, x, hidden_state):
+    def forward(self, x, has_key, hidden_state):
         """
-        x: (batch_size, sequence_length, 3, 3)
+        x: (batch_size, seq_len, 3, 3)
+        has_key: (batch_size, seq_len, 1) - float tensor (0.0 or 1.0)
         hidden_state: (1, batch_size, hidden_size)
         """
         batch_size, seq_len, h, w = x.shape
 
-        # (batch_size, seq_len, 3, 3) -> (batch_size, seq_len, 3, 3, embedding_dim)
-        x = self.embedding(x.long())
+        # Embed and flatten the grid
+        x = self.embedding(x.long()) # (batch, seq, 3, 3, 8)
+        x = x.view(batch_size, seq_len, -1) # (batch, seq, 72)
 
-        # Flatten to (batch_size, seq_len, 72)
-        x = x.view(batch_size, seq_len, -1)
+        # Concatenate the 'has_key' status to the features
+        # This gives the GRU explicit context: "I am in key-seeking mode" vs "I am in exit-seeking mode"
+        combined_features = torch.cat((x, has_key), dim=-1) # (batch, seq, 73)
 
-        # Pass through the GRU layer.
-        out, new_hidden_state = self.gru(x, hidden_state)
+        # Pass through GRU
+        out, new_hidden_state = self.gru(combined_features, hidden_state)
 
-        # Use only the output from the last time step.
+        # Use the output from the last time step
         out = out[:, -1, :]
 
-        # Compute actor and critic outputs.
         action_logits = self.actor(out)
         state_value = self.critic(out)
 
         return action_logits, state_value, new_hidden_state
 
     def init_hidden(self, batch_size=1):
-        """Initialize the GRU hidden state at the start of each episode."""
         return torch.zeros(1, batch_size, self.hidden_size)
 
 
@@ -78,26 +76,27 @@ class A2CAgent:
         """Reset recurrent memory at the start of each episode."""
         self.hidden_state = self.network.init_hidden()
 
-    def select_action(self, obs):
+    def select_action(self, obs, has_key):
         """
-        Select an action from the current observation and return the values needed for loss computation.
-        obs shape: (3, 3) numpy array
+        obs: (3, 3) numpy array
+        has_key: bool
         """
-        # Convert the numpy array to a tensor and add batch and sequence dimensions: (1, 1, 3, 3)
+        # Convert inputs to tensors with (batch=1, seq=1) dimensions
         obs_tensor = torch.tensor(obs, dtype=torch.long).unsqueeze(0).unsqueeze(0)
+        has_key_tensor = torch.tensor([[[float(has_key)]]], dtype=torch.float32)
 
-        # Forward pass through the network.
-        logits, state_value, self.hidden_state = self.network(obs_tensor, self.hidden_state)
+        # Forward pass
+        logits, state_value, self.hidden_state = self.network(
+            obs_tensor, has_key_tensor, self.hidden_state
+        )
 
-        # Sample an action from the categorical distribution.
+        # Action selection
         probs = F.softmax(logits, dim=-1)
         distribution = Categorical(probs)
         action = distribution.sample()
 
-        # Save the log probability for the actor loss.
         log_prob = distribution.log_prob(action)
 
-        # Return the action, log probability, state value, and entropy bonus term.
         return (
             action.item(),
             log_prob.unsqueeze(0),
@@ -105,11 +104,14 @@ class A2CAgent:
             distribution.entropy().unsqueeze(0),
         )
 
-    def act(self, obs, deterministic=False):
-        """Run inference and return only the chosen action."""
+    def act(self, obs, has_key, deterministic=False):
+        """Inference mode."""
         obs_tensor = torch.tensor(obs, dtype=torch.long).unsqueeze(0).unsqueeze(0)
+        has_key_tensor = torch.tensor([[[float(has_key)]]], dtype=torch.float32)
 
-        logits, _, self.hidden_state = self.network(obs_tensor, self.hidden_state)
+        logits, _, self.hidden_state = self.network(
+            obs_tensor, has_key_tensor, self.hidden_state
+        )
 
         if deterministic:
             action = torch.argmax(logits, dim=-1)

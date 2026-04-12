@@ -1,14 +1,14 @@
 SPARSE_REWARD_VALUES = {
-    "key": 1.0,
-    "exit": 5.0,
+    "key": 20.0,
+    "exit": 50.0,
 }
 
 DENSE_REWARD_CONFIG = {
-    "step_penalty": -0.02,
-    "revisit_penalty": -0.03,
-    "progress_scale": 0.12,
+    "step_penalty": -0.1,
+    "revisit_penalty": -0.05,
+    "progress_scale": 0.25,
     "pre_key_key_weight": 1.0,
-    "pre_key_exit_weight": 0.15,
+    "pre_key_exit_weight": 0.0,
     "post_key_key_weight": 0.0,
     "post_key_exit_weight": 1.0,
 }

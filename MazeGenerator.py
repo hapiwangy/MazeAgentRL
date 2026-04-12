@@ -12,6 +12,7 @@ class MazeGenerator:
     2: entrance
     3: exit
     4: key
+    5: agent (used only in visualization, not in the grid data)
     '''
     def __init__(self):
         pass

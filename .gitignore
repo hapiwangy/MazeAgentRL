@@ -6,3 +6,4 @@ past result
 .env
 .venv
 **/__pycache__/
+eval_results/**/*.csv

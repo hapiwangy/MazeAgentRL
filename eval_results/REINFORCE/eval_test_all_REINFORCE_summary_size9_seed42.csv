@@ -1,2 +1,0 @@
-Algorithm,Checkpoint,Maze_Size,Num_Mazes,Evaluation_Seed,Deterministic,Success_Rate,Average_Steps,Average_Sparse_Reward,Average_Steps_On_Success
-REINFORCE,/Users/michellelin/Documents/usc/nlp/project/MazeAgentRL/checkpoints/REINFORCE/reinforce_REINFORCE_sparse_dense_size9_lr0.0005_seed42_20260412_044025.pt,9,100,42,1,0.02,490.74,0.17,37

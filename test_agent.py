@@ -9,7 +9,7 @@ import torch
 from A2C import A2CAgent, A2CNetwork
 from Maze import MazeEnv
 from REINFORCE import REINFORCEAgent, REINFORCENetwork
-from utils import ensure_method_dirs, save_trajectory_gif, set_global_seed
+from utils import checkpoint_timestamp, ensure_method_dirs, save_trajectory_gif, set_global_seed
 
 
 def build_agent(algo):
@@ -124,7 +124,7 @@ def main():
 
     while not done:
         with torch.no_grad():
-            action = agent.act(obs, deterministic=args.deterministic)
+            action = agent.act(obs, info["has_key"], deterministic=args.deterministic)
 
         obs, reward, terminated, truncated, info = env.step(action)
         done = terminated or truncated
@@ -145,12 +145,10 @@ def main():
     print(f"Success: {info['is_success']}")
     print(f"Sparse Reward Sum: {total_reward:.2f}")
 
+    run_id = checkpoint_timestamp(args.checkpoint) or "unknown"
     result_filename = os.path.join(
         eval_dir,
-        (
-            f"{args.run_name}_{algo}_maze{current_maze_data['id']}_"
-            f"size{current_maze_data['size']}_seed{seed}.csv"
-        ),
+        f"{run_id}_maze{current_maze_data['id']}_seed{seed}.csv",
     )
     with open(result_filename, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)

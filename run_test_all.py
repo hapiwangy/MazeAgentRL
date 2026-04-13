@@ -10,7 +10,7 @@ import torch
 from A2C import A2CAgent, A2CNetwork
 from Maze import MazeEnv
 from REINFORCE import REINFORCEAgent, REINFORCENetwork
-from utils import ensure_method_dirs, save_trajectory_gif, set_global_seed
+from utils import checkpoint_timestamp, ensure_method_dirs, save_trajectory_gif, set_global_seed
 
 
 def build_agent(algo):
@@ -44,9 +44,10 @@ def evaluate_maze(agent, maze_data, max_steps, deterministic):
 
     while not done:
         with torch.no_grad():
-            action = agent.act(obs, deterministic=deterministic)
+            action = agent.act(obs, info["has_key"], deterministic=deterministic)
 
         obs, reward, terminated, truncated, final_info = env.step(action)
+        info = final_info
         done = terminated or truncated
         total_reward += reward
 
@@ -142,8 +143,10 @@ def main():
 
     eval_dir = ensure_method_dirs("eval_results", algo)
     gif_dir = ensure_method_dirs("gifs", algo)
-    detail_path = os.path.join(eval_dir, f"{args.run_name}_{algo}_details_size{maze_size}_seed{seed}.csv")
-    summary_path = os.path.join(eval_dir, f"{args.run_name}_{algo}_summary_size{maze_size}_seed{seed}.csv")
+
+    run_id = checkpoint_timestamp(checkpoint_path) or "unknown"
+    detail_path = os.path.join(eval_dir, f"{run_id}_seed{seed}_details.csv")
+    summary_path = os.path.join(eval_dir, f"{run_id}_seed{seed}_summary.csv")
 
     results = []
     for maze_data in maze_dataset:

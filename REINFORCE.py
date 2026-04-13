@@ -77,8 +77,8 @@ class REINFORCEAgent:
 
         return (
             action.item(),
-            log_prob.unsqueeze(0),
-            distribution.entropy().unsqueeze(0),
+            log_prob,
+            distribution.entropy(),
         )
 
     def act(self, obs, has_key, deterministic=False):

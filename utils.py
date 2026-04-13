@@ -1,5 +1,6 @@
 import os
 import random
+import re
 
 import matplotlib.animation as animation
 import matplotlib.colors as mcolors
@@ -42,6 +43,22 @@ def ensure_method_dirs(base_dir, method_name):
     return method_dir
 
 
+def checkpoint_timestamp(checkpoint_path):
+    """Extract the trailing timestamp token from a checkpoint filename.
+
+    Expected checkpoint naming pattern ends with: _YYYYMMDD_HHMMSS.pt
+    Returns the extracted YYYYMMDD_HHMMSS string, or None if not found.
+    """
+    base = os.path.basename(str(checkpoint_path))
+    match = re.search(r"_(\d{8}_\d{6})(?:\.pt)?$", base)
+    if match:
+        return match.group(1)
+    match = re.search(r"(\d{8}_\d{6})", base)
+    if match:
+        return match.group(1)
+    return None
+
+
 def save_trajectory_gif(frames, episode, filename="trajectory.gif", fps=50, output_dir="gifs"):
     """
     Save an episode trajectory as an animated GIF.
@@ -80,7 +97,7 @@ def save_trajectory_gif(frames, episode, filename="trajectory.gif", fps=50, outp
     print(f"[*] Saved trajectory GIF to {filepath} ({fps} FPS)")
 
 
-def plot_learning_curves(rewards, steps, successes, plot_filename, window=50, output_dir="plots"):
+def plot_learning_curves(rewards, steps, successes, plot_filename, window=100, output_dir="plots"):
     """
     Plot smoothed learning curves for reward, episode length, and success rate.
     """

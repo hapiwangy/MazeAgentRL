@@ -99,9 +99,9 @@ class A2CAgent:
 
         return (
             action.item(),
-            log_prob.unsqueeze(0),
+            log_prob,
             state_value.view(1),
-            distribution.entropy().unsqueeze(0),
+            distribution.entropy(),
         )
 
     def act(self, obs, has_key, deterministic=False):

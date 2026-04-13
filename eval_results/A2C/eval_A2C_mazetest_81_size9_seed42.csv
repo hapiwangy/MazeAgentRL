@@ -1,0 +1,2 @@
+Algorithm,Checkpoint,Checkpoint_Seed,Evaluation_Seed,Maze_ID,Maze_Size,Deterministic,Steps,Success,Sparse_Reward_Sum
+A2C,/Users/michellelin/Documents/usc/nlp/project/MazeAgentRL/checkpoints/A2C/a2c_sd_A2C_sparse_dense_size9_lr0.0005_seed42_20260412_043519.pt,42,42,test_81,9,1,500,0,1.0

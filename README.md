@@ -2,6 +2,11 @@
 
 MazeAgentRL is a reinforcement learning project for partially observable maze navigation.
 
+Current experiment focus:
+
+- reward-combination ablation across the same RL task
+- analysis of LLM-based reward shaping inside the same training pipeline
+
 In each maze, the agent must:
 
 1. find the key,
@@ -20,7 +25,36 @@ The project currently includes:
 - single-maze evaluation
 - full test-set batch evaluation
 
-## 1. Project Structure
+## 1. Current Experiment Design
+
+The current experimental design is centered on comparing reward strategies under a fixed maze-navigation setting.
+
+Primary reward-combination comparison:
+
+1. `sparse`
+2. `dense`
+3. `llm`
+4. `sparse_dense`
+5. `dense_llm`
+6. `sparse_llm`
+7. `sparse_dense_llm`
+
+Recommended comparison protocol:
+
+- keep the maze task, dataset split, algorithm, maze size, and training budget fixed
+- vary only `--reward_mode`
+- compare both training behavior and held-out evaluation results
+
+Useful outputs already supported by the repository:
+
+- training CSV logs in `logs/<algo>/`
+- learning curves in `plots/<algo>/`
+- per-maze and summary evaluation CSVs from `run_test_all.py`
+- qualitative GIF trajectories in `gifs/<algo>/`
+
+The secondary experiment direction in `todo.md` is comparing different LLM reward designs. The current repository only implements one LLM reward generator in `OpenAILLM.py`, so that direction is not yet a full multi-method benchmark in code.
+
+## 2. Project Structure
 
 Core files:
 
@@ -51,7 +85,7 @@ Generated or commonly used folders:
 - `eval_results/`: evaluation CSV outputs
 - `llm_cache.json`: cache of LLM reward responses
 
-## 2. Environment Setup
+## 3. Environment Setup
 
 Install dependencies:
 
@@ -87,7 +121,7 @@ Notes:
 - LLM reward is only used during training.
 - Evaluation scripts do not call the LLM.
 
-## 3. Problem Setting
+## 4. Problem Setting
 
 ### Partial observability
 
@@ -118,12 +152,12 @@ Episode ending conditions:
 
 `MazeEnv` itself provides sparse reward only:
 
-- `+1.0` when the key is picked up
-- `+5.0` when the agent reaches the exit after picking up the key
+- `+20.0` when the key is picked up
+- `+50.0` when the agent reaches the exit after picking up the key
 
 During training, `main.py` may add dense reward and LLM reward on top of this sparse reward through `RewardManager`.
 
-## 4. Dataset Generation
+## 5. Dataset Generation
 
 Generate the default datasets:
 
@@ -171,7 +205,7 @@ The generator validates solvability with the required order:
 
 `start -> key -> exit`
 
-## 5. Dataset Inspection
+## 6. Dataset Inspection
 
 Visualize random samples from the generated dataset:
 
@@ -186,7 +220,7 @@ The current script saves:
 
 Each maze is exported as a PNG file named by maze id.
 
-## 6. Reward Design
+## 7. Reward Design
 
 Training reward is computed as:
 
@@ -212,12 +246,14 @@ Current default:
 
 - `sparse_dense_llm`
 
+These seven modes are the main ablation axis in the current experiment design.
+
 ### Sparse reward
 
 Defined by `MazeEnv` and reused in `RewardEngine`:
 
-- key pickup: `+1.0`
-- successful exit: `+5.0`
+- key pickup: `+20.0`
+- successful exit: `+50.0`
 
 ### Dense reward
 
@@ -225,9 +261,9 @@ Defined in `RewardEngine.py`.
 
 It currently includes:
 
-- step penalty: `-0.02`
-- revisit penalty: `-0.03`
-- progress bonus scaled by `0.12`
+- step penalty: `-0.1`
+- revisit penalty: `-0.05`
+- progress bonus scaled by `0.25`
 
 Important detail:
 
@@ -247,35 +283,76 @@ Current behavior:
 - the model returns a JSON reward range
 - `RewardEngine` clips that range to configured bounds and samples one scalar reward
 - per-step range is clipped to `[-0.05, 0.5]`
-- episode-level absolute LLM reward budget is capped to `5.0 * 0.49 = 2.45`
+- episode-level absolute LLM reward budget is capped to `50.0 * 0.49 = 24.5`
 - responses are cached in `llm_cache.json`
 
 One implementation detail to be aware of:
 
 - the prompt asks the LLM to reason with Manhattan distance, while the hand-designed dense reward uses BFS path distance
 
-## 7. Training
+## 8. Experimental Protocol
+
+To run the current reward-combination study, repeat training with the same settings and change only `--reward_mode`.
+
+Example template:
+
+```bash
+python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000 --reward_mode sparse --run_name reward_ablation
+```
+
+Then rerun with:
+
+- `dense`
+- `llm`
+- `sparse_dense`
+- `dense_llm`
+- `sparse_llm`
+- `sparse_dense_llm`
+
+Recommended controlled variables:
+
+- same algorithm
+- same dataset
+- same maze size
+- same learning rate
+- same entropy coefficient
+- same episode budget
+- same seed or same seed policy across runs
+
+Recommended reporting metrics:
+
+- training reward trend
+- training success rate
+- test success rate
+- average evaluation steps
+- trajectory quality from saved GIFs
+
+For the planned "different LLM reward" experiment, the codebase would need extra prompt variants or additional LLM reward modules beyond the current `OpenAILLM.py` implementation.
+
+## 9. Training
 
 Train with `main.py`.
+
+For the current study, training should be treated as a controlled ablation over reward modes.
 
 ### Example commands
 
 Train `A2C` on `9x9` mazes:
 
 ```bash
-python main.py --algo A2C --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 1500
+python main.py --algo A2C --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000
 ```
 
 Train `REINFORCE` on `9x9` mazes:
 
 ```bash
-python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 1500
+python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000
 ```
 
 Train with an explicit reward mode and run name:
 
 ```bash
-python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 1500 --reward_mode sparse_dense_llm --run_name exp_reward_compare
+python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000 --reward_mode sparse_dense_llm --run_name exp_reward_compare
 ```
 
 ### Main arguments
@@ -285,7 +362,7 @@ python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 
 - `--lr`: learning rate, default `0.001`
 - `--entropy_coef`: entropy regularization coefficient, default `0.05`
 - `--max_steps`: max steps per episode, default `500`
-- `--episodes`: number of training episodes, default `1500`
+- `--episodes`: number of training episodes, default `2000`
 - `--maze_size`: maze size filter, choices `9` or `25`, default `9`
 - `--seed`: random seed, default `42`
 - `--run_name`: output tag, default `default`
@@ -348,7 +425,7 @@ Checkpoint metadata currently includes:
 - run name
 - model weights
 
-## 8. Single-Maze Evaluation
+## 10. Single-Maze Evaluation
 
 Use `test_agent.py` to evaluate one maze with a trained checkpoint.
 
@@ -409,7 +486,7 @@ Saved files:
 - one CSV under `eval_results/<algo>/`
 - one GIF under `gifs/<algo>/` when `--save_gif` is enabled
 
-## 9. `run_test.py` Wrapper
+## 11. `run_test.py` Wrapper
 
 `run_test.py` is a convenience wrapper around `test_agent.py`.
 
@@ -443,7 +520,7 @@ Supported arguments:
 - `--deterministic`
 - `--save_gif`
 
-## 10. Batch Evaluation
+## 12. Batch Evaluation
 
 Use `run_test_all.py` to evaluate one checkpoint on all mazes of the selected size in a dataset.
 
@@ -501,7 +578,9 @@ Summary metrics currently include:
 - average sparse reward
 - average steps on successful mazes
 
-## 11. GIF Visualization
+This summary output is the main artifact for comparing the seven reward modes on the held-out test set.
+
+## 13. GIF Visualization
 
 Trajectory GIFs are generated by `utils.py`.
 
@@ -529,7 +608,7 @@ Evaluation GIF frequency:
 
 - optional, controlled by `--save_gif` or `--save_gifs`
 
-## 12. Model Details
+## 14. Model Details
 
 Both policies use the same observation pipeline:
 
@@ -561,7 +640,7 @@ Loss structure:
 - normalized discounted returns
 - entropy regularization during training
 
-## 13. BFS Baseline
+## 15. BFS Baseline
 
 `BFS_solver.py` provides a shortest-path reference for the ordered objective:
 
@@ -575,7 +654,7 @@ It returns:
 
 This is useful for error analysis and for comparing learned behavior with shortest valid paths.
 
-## 14. Typical Workflow
+## 16. Typical Workflow
 
 Recommended workflow:
 
@@ -588,22 +667,24 @@ Recommended workflow:
 7. evaluate the full test subset for one maze size with `python run_test_all.py ...`
 8. analyze CSV logs, plots, and GIFs
 
-## 15. Notes and Limitations
+## 17. Notes and Limitations
 
 - `main.py` only trains on one maze size per run because it filters the dataset by `--maze_size`.
 - `test_agent.py` and `run_test_all.py` report sparse environment reward, not dense reward and not LLM reward.
 - Any reward mode containing `llm` requires a valid OpenAI API key during training.
 - LLM reward calls can be slow and may increase training cost.
+- `main.py` currently instantiates the LLM reward generator with model `gpt-4o-mini`.
+- reward-combination comparison is fully supported, but multiple implemented LLM reward variants are not yet available in the repository.
 - `llm_cache.json` may contain either older point-value entries or newer range-style entries; `OpenAILLM.py` normalizes both formats when loading.
 - If you change the network architecture in `A2C.py` or `REINFORCE.py`, old checkpoints may fail to load.
 - The current code stores only one checkpoint at the end of training, not intermediate checkpoints.
 
-## 16. Quick Start
+## 18. Quick Start
 
 Train:
 
 ```bash
-python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 1500 --reward_mode sparse_dense_llm --run_name exp1
+python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000 --reward_mode sparse_dense_llm --run_name exp1
 ```
 
 Evaluate one maze:

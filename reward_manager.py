@@ -1,6 +1,11 @@
 from OpenAILLM import OpenAILLM
 from RewardEngine import RewardEngine
-from reward_config import build_reward_components, combine_rewards, reward_mode_uses_llm
+from reward_config import (
+    LLM_REWARD_RANGE_CONFIG,
+    build_reward_components,
+    combine_rewards,
+    reward_mode_uses_llm,
+)
 
 
 class RewardManager:
@@ -22,7 +27,26 @@ class RewardManager:
         llm_reward = 0.0
         if self.llm_api is not None:
             llm_reward_range = self.llm_api.get_reward_range(current_info, prev_info)
-            llm_reward = self.reward_engine.sample_llm_reward(llm_reward_range)
+            llm_only = self.reward_mode == "llm"
+            llm_reward = self.reward_engine.sample_llm_reward(
+                llm_reward_range,
+                scale=LLM_REWARD_RANGE_CONFIG["llm_only_scale"] if llm_only else 1.0,
+                budget_scale=LLM_REWARD_RANGE_CONFIG["llm_only_budget_scale"] if llm_only else 1.0,
+                deterministic=llm_only,
+            )
+
+            # In llm-only mode, the agent otherwise never sees large milestone signals.
+            # Add small deterministic bonuses to make the objective learnable.
+            if llm_only:
+                if current_info.get("has_key", False) and not prev_info.get("has_key", False):
+                    llm_reward += float(LLM_REWARD_RANGE_CONFIG["llm_only_key_bonus"])
+                if current_info.get("is_success", False):
+                    llm_reward += float(LLM_REWARD_RANGE_CONFIG["llm_only_exit_bonus"])
+
+                agent_pos = tuple(current_info.get("agent_pos", ()))
+                exit_pos = tuple(current_info.get("exit_pos", ()))
+                if agent_pos and exit_pos and (agent_pos == exit_pos) and not current_info.get("has_key", False):
+                    llm_reward += float(LLM_REWARD_RANGE_CONFIG["llm_only_exit_without_key_penalty"])
 
         reward_components = build_reward_components(
             sparse_reward=sparse_reward,

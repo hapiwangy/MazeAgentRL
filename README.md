@@ -104,6 +104,17 @@ Current `requirements.txt` contains:
 
 If you use any reward mode that includes `llm`, you must set `OPENAI_API_KEY` before training.
 
+Recommended (local `.env` file in this folder):
+
+1. Create a file named `.env` in the project folder (it is already in `.gitignore`).
+2. Add:
+
+```bash
+OPENAI_API_KEY=your_api_key
+```
+
+The code will auto-load this `.env` at runtime.
+
 Linux / macOS:
 
 ```bash

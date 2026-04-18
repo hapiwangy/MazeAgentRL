@@ -1,9 +1,9 @@
 checkpoints
 gifs
 logs
-plots
+# plots
 past result
 .env
 .venv
 **/__pycache__/
-eval_results/**/*.csv
+# eval_results/**/*.csv

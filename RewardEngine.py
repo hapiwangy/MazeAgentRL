@@ -116,17 +116,28 @@ class RewardEngine:
 
         return reward
 
-    def sample_llm_reward(self, raw_llm_range):
-        """Clamp the LLM range and sample while enforcing the episode budget."""
+    def sample_llm_reward(self, raw_llm_range, *, scale=1.0, budget_scale=1.0, deterministic=False):
+        """Clamp the LLM range and sample while enforcing the episode budget.
+
+        Args:
+            raw_llm_range: Dict with "min" and "max" keys.
+            scale: Multiplier applied to the sampled reward (used for llm-only mode).
+            budget_scale: Multiplier applied to the per-episode absolute reward budget.
+        """
         low = np.clip(raw_llm_range["min"], self.llm_step_min, self.llm_step_max)
         high = np.clip(raw_llm_range["max"], self.llm_step_min, self.llm_step_max)
 
         if low > high: low, high = high, low
-        candidate = random.uniform(low, high)
-        
-        if self.llm_accumulated_reward + abs(candidate) > self.llm_total_budget:
-            remaining = max(0, self.llm_total_budget - self.llm_accumulated_reward)
-            candidate = np.sign(candidate) * remaining
+        if deterministic:
+            candidate = 0.5 * (low + high)
+        else:
+            candidate = random.uniform(low, high)
+        candidate = float(candidate) * float(scale)
+
+        effective_budget = self.llm_total_budget * float(budget_scale)
+        if self.llm_accumulated_reward + abs(candidate) > effective_budget:
+            remaining = max(0.0, effective_budget - self.llm_accumulated_reward)
+            candidate = float(np.sign(candidate) * remaining)
 
         self.llm_accumulated_reward += abs(candidate)
         return float(candidate)

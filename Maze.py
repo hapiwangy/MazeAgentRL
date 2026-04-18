@@ -101,7 +101,21 @@ class MazeEnv(gym.Env):
             "key_pos": self.key_pos,
             "step_count": self.current_step,
             "global_map_string": self._get_global_state_string(),
+            "maze_layout_string": self._get_maze_layout_string(),
         }
+
+    def _get_maze_layout_string(self):
+        """Static maze layout string (no agent marker) for hashing/caching.
+
+        Keeps S/E/K fixed to the original maze definition so it is stable
+        across steps and across key pickup.
+        """
+        chars = {0: ".", 1: "#", 2: "S", 3: "E", 4: "K"}
+        disp = self.initial_map.copy()
+        res = ""
+        for row in disp:
+            res += " ".join([chars[int(val)] for val in row]) + "\n"
+        return res.strip()
 
     def _get_global_state_string(self):
         chars = {0: ".", 1: "#", 2: "S", 3: "E", 4: "K", 5: "A"}

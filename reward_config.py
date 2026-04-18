@@ -17,6 +17,15 @@ LLM_REWARD_RANGE_CONFIG = {
     "step_min": -0.05,
     "step_max": 0.5,
     "total_budget_ratio": 0.49,
+
+    # LLM-only mode tends to under-train because its shaping signal is tiny
+    # compared to sparse/dense milestone rewards. These values are applied
+    # ONLY when reward_mode == "llm".
+    "llm_only_scale": 5.0,
+    "llm_only_budget_scale": 5.0,
+    "llm_only_key_bonus": 5.0,
+    "llm_only_exit_bonus": 20.0,
+    "llm_only_exit_without_key_penalty": -2.0,
 }
 
 REWARD_MODE_COMPONENTS = {

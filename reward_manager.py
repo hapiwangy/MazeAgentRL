@@ -1,4 +1,4 @@
-from OpenAILLM import OpenAILLM
+from QwenLLM import QwenLLM
 from RewardEngine import RewardEngine
 from reward_config import (
     LLM_REWARD_RANGE_CONFIG,
@@ -11,10 +11,10 @@ from reward_config import (
 class RewardManager:
     """Centralized reward pipeline for sparse, dense, and LLM-based shaping."""
 
-    def __init__(self, reward_mode, llm_model_name="gpt-4o-mini"):
+    def __init__(self, reward_mode, llm_model_name="Qwen/Qwen2.5-7B-Instruct"):
         self.reward_mode = reward_mode
         self.reward_engine = RewardEngine()
-        self.llm_api = OpenAILLM(model_name=llm_model_name) if reward_mode_uses_llm(reward_mode) else None
+        self.llm_api = QwenLLM(model_name=llm_model_name) if reward_mode_uses_llm(reward_mode) else None
 
     def reset(self):
         self.reward_engine.reset()
@@ -23,7 +23,7 @@ class RewardManager:
         sparse_reward = self.reward_engine.compute_sparse_reward(current_info, prev_info)
         dense_reward = self.reward_engine.compute_dense_reward(current_info, prev_info)
 
-        llm_reward_range = {"min": 0.0, "max": 0.0, "thought_process": "LLM disabled"}
+        llm_reward_range = {"min": 0.0, "max": 0.0, "state_analysis": "LLM disabled"}
         llm_reward = 0.0
         if self.llm_api is not None:
             llm_reward_range = self.llm_api.get_reward_range(current_info, prev_info)

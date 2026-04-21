@@ -1,0 +1,412 @@
+{
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 4)|curr:(2, 4)|key:False": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a position further from the key, increasing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(2, 4)|curr:(2, 4)|key:False": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(2, 4)|curr:(2, 3)|key:False": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the key by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(2, 3)|curr:(2, 4)|key:False": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved closer to the key, reducing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(2, 4)|curr:(3, 4)|key:False": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved closer to the key, reducing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 4)|curr:(3, 5)|key:False": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved closer to the key, reducing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 5)|curr:(3, 6)|key:False": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the key, reducing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 6)|curr:(3, 5)|key:False": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a position that increased the distance to the key, indicating a regression."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 6)|curr:(3, 7)|key:False": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a position further from the key, increasing the true path distance."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 7)|curr:(2, 7)|key:False": {
+        "min": 0.05,
+        "max": 0.3,
+        "state_analysis": "The agent moved closer to the key and is making progress towards the ultimate goal."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(2, 7)|curr:(1, 7)|key:False": {
+        "min": 0.05,
+        "max": 0.3,
+        "state_analysis": "Agent moved closer to the key and is making progress towards the ultimate goal."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(1, 7)|curr:(1, 7)|key:False": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(1, 7)|curr:(1, 6)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(1, 6)|curr:(2, 6)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(2, 6)|curr:(3, 6)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 6)|curr:(3, 7)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 7)|curr:(2, 7)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a more distant position relative to the goal and entered a corridor with a wall ahead, indicating a regression move."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(2, 7)|curr:(2, 7)|key:True": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(2, 7)|curr:(2, 6)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 7)|curr:(3, 7)|key:True": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 7)|curr:(3, 6)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 6)|curr:(3, 5)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 5)|curr:(3, 6)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(2, 7)|curr:(3, 7)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 5)|curr:(3, 4)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 4)|curr:(3, 3)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(3, 3)|curr:(4, 3)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(4, 3)|curr:(5, 3)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(5, 3)|curr:(6, 3)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved away from the optimal path, increasing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(6, 3)|curr:(6, 3)|key:True": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(6, 3)|curr:(5, 3)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(5, 3)|curr:(5, 4)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(5, 4)|curr:(4, 4)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(4, 4)|curr:(5, 4)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(5, 4)|curr:(6, 4)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(6, 4)|curr:(6, 3)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(6, 3)|curr:(7, 3)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(7, 3)|curr:(7, 3)|key:True": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(7, 3)|curr:(7, 4)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(7, 4)|curr:(6, 4)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(6, 4)|curr:(7, 4)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(7, 4)|curr:(7, 3)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(7, 3)|curr:(7, 2)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved towards the goal, reducing the distance by 1 step. It is not in a dead-end and has made progress towards the current target."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(7, 2)|curr:(7, 1)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved closer to the goal by 1 step, making progress towards the exit."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(7, 1)|curr:(7, 1)|key:True": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:4b51134e17|prev:(7, 1)|curr:(6, 1)|key:True": {
+        "min": 0.45,
+        "max": 0.49,
+        "state_analysis": "The agent reached the current goal successfully."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(6, 3)|curr:(5, 3)|key:False": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the key by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(5, 3)|curr:(5, 2)|key:False": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a position that is farther from the key, indicating a regression."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(5, 2)|curr:(5, 2)|key:False": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(5, 2)|curr:(5, 1)|key:False": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the key by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(5, 1)|curr:(5, 1)|key:False": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(5, 1)|curr:(6, 1)|key:False": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved towards the key, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(6, 1)|curr:(7, 1)|key:False": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved towards the key, reducing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(7, 1)|curr:(7, 2)|key:False": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved closer to the key, reducing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(7, 2)|curr:(7, 1)|key:False": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the key by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(7, 1)|curr:(7, 1)|key:False": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(7, 1)|curr:(6, 1)|key:False": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a position that increased its distance to the key, indicating a regression."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(6, 1)|curr:(6, 1)|key:False": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(7, 2)|curr:(7, 3)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(7, 3)|curr:(6, 3)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a position that is farther from the optimal path to the exit."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(6, 3)|curr:(5, 3)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a more distant position relative to the goal and entered a potentially dead-end corridor."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(5, 3)|curr:(4, 3)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(4, 3)|curr:(5, 3)|key:True": {
+        "min": -0.03,
+        "max": 0.15,
+        "state_analysis": "The agent moved towards the goal, reducing the distance by 1 step. The local sensation shows the agent is in an open area."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(5, 3)|curr:(5, 4)|key:True": {
+        "min": -0.03,
+        "max": 0.15,
+        "state_analysis": "The agent moved closer to the goal by 1 step, and there are no immediate penalties or critical events."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(5, 4)|curr:(5, 5)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(5, 5)|curr:(5, 6)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a position that is farther from the exit, increasing the true path distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(5, 6)|curr:(4, 6)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved away from the optimal path, increasing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(4, 6)|curr:(3, 6)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(3, 6)|curr:(3, 6)|key:True": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(3, 6)|curr:(3, 7)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a position that is farther from the exit, indicating a regression."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(3, 7)|curr:(3, 6)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(3, 6)|curr:(3, 5)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position and entered an open area with no immediate obstacles or goals."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(3, 5)|curr:(3, 6)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(3, 7)|curr:(2, 7)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position, increasing the distance to the goal by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(2, 7)|curr:(2, 7)|key:True": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(2, 7)|curr:(1, 7)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a more distant position relative to the goal and entered a potentially complex area with no immediate clear path."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(1, 7)|curr:(1, 6)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position and entered an open area with no immediate obstacles or goals."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(1, 6)|curr:(1, 7)|key:True": {
+        "min": 0.05,
+        "max": 0.2,
+        "state_analysis": "The agent moved successfully towards the goal, reducing the distance by 1 step."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(1, 7)|curr:(1, 7)|key:True": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(1, 6)|curr:(1, 6)|key:True": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(1, 6)|curr:(1, 5)|key:True": {
+        "min": -0.03,
+        "max": -0.01,
+        "state_analysis": "The agent moved into a less optimal position and entered an open area with no immediate obstacles or goals."
+    },
+    "v:qwen_local_transformers_v1|model:Qwen/Qwen2.5-7B-Instruct|range:-0.05:0.5|maze:6d00941d4a|prev:(1, 5)|curr:(1, 5)|key:True": {
+        "min": -0.045000000000000005,
+        "max": -0.020000000000000004,
+        "state_analysis": "The move was invalid or wasted and made no useful progress."
+    }
+}

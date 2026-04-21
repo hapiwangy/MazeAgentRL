@@ -1,6 +1,7 @@
 checkpoints
 gifs
 logs
+optimized_bundle/
 # plots
 past result
 .env

@@ -1,12 +1,13 @@
+import atexit
 import hashlib
 import json
 import os
 import time
-import atexit
 from collections import deque
 from pathlib import Path
 
-from openai import OpenAI
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from reward_config import LLM_REWARD_RANGE_CONFIG
 
@@ -51,28 +52,48 @@ def _try_load_dotenv() -> None:
     _load_env_file(Path(__file__).resolve().parent / ".env")
 
 
-class OpenAILLM:
-    PROMPT_VERSION = "v2_move_type_cache"
+class QwenLLM:
+    PROMPT_VERSION = "qwen_local_transformers_v1"
 
-    def __init__(self, model_name="gpt-4o-mini", cache_file="llm_cache.json", save_every=64):
+    def __init__(
+        self,
+        model_name="Qwen/Qwen2.5-7B-Instruct",
+        cache_file="llm_cache_qwen.json",
+        save_every=64,
+        max_new_tokens=180,
+    ):
         _try_load_dotenv()
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError(
-                "OPENAI_API_KEY is not set. Set it in a local .env file or export it before training."
-            )
-
-        self.client = OpenAI(api_key=api_key)
         self.model_name = model_name
         self.min_reward = float(LLM_REWARD_RANGE_CONFIG["step_min"])
         self.max_reward = float(LLM_REWARD_RANGE_CONFIG["step_max"])
         self.cache_file = cache_file
         self.cache = self._load_cache()
         self.save_every = int(save_every)
+        self.max_new_tokens = int(max_new_tokens)
         self.pending_cache_writes = 0
         self.api_call_count = 0
         self.cache_hit_count = 0
         atexit.register(self._flush_cache_on_exit)
+
+        print(f"Loading local Qwen model: {self.model_name}")
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
+
+        if torch.cuda.is_available():
+            torch_dtype = torch.float16
+            model_kwargs = {
+                "torch_dtype": torch_dtype,
+                "device_map": "auto",
+                "trust_remote_code": True,
+            }
+        else:
+            torch_dtype = torch.float32
+            model_kwargs = {
+                "torch_dtype": torch_dtype,
+                "trust_remote_code": True,
+            }
+
+        self.model = AutoModelForCausalLM.from_pretrained(self.model_name, **model_kwargs)
+        self.model.eval()
 
     def _build_system_prompt(self):
         return (
@@ -94,7 +115,7 @@ class OpenAILLM:
         map_string,
     ):
         return f"""
-You are an expert Reinforcement Learning reward-shaping AI. Your goal is to evaluate a maze-solving agent's recent step and output a structured reward interval.
+You are an expert Reinforcement Learning reward-shaping AI. Your goal is to evaluate a maze-solving agent's recent step and output a structured reward interval in JSON.
 
 ### Absolute Environment Facts (Pre-calculated)
 - Goal: Reach {'Exit (E)' if has_key else 'Key (K)'}
@@ -120,11 +141,11 @@ Base your evaluation on the Move Type, Distance Delta, and the Local Sensation:
 4. NEUTRAL VALID MOVE: If Move Type is neutral_valid_move and Distance Delta is zero, the move is legal but gave no shortest-path progress. Keep the reward near zero or slightly negative.
 5. REGRESSION: If Move Type is regression and Distance Delta is positive, the agent is walking away from the optimal path. Apply a negative reward.
 6. UNCERTAINTY WIDTH:
-   - Use a tight interval (e.g., width of 0.1) for absolute events (walls, goal reached, hitting exit without key).
-   - Use a wider interval (e.g., width of 0.5) if the agent is in an open area exploring.
+   - Use a tight interval for absolute events (walls, goal reached, hitting exit without key).
+   - Use a wider interval if the agent is in an open area exploring.
 
 ### Output Format
-Output ONLY a valid JSON object. No markdown formatting like ```json. Provide only a very brief, high-level summary of your reasoning in the state_analysis field, omitting intermediate step-by-step logic.
+Output ONLY a valid JSON object. No markdown formatting. Provide only a very brief, high-level summary of your reasoning in the state_analysis field.
 {{
   "state_analysis": "<Brief high-level summary of the state and distance delta>",
   "reward_lower_bound": <float>,
@@ -252,8 +273,9 @@ Output ONLY a valid JSON object. No markdown formatting like ```json. Provide on
             layout_string = current_info.get("global_map_string", "").replace("A", ".")
         maze_hash = hashlib.sha1(layout_string.encode("utf-8")).hexdigest()[:10]
         return (
-            f"v:{self.PROMPT_VERSION}|model:{self.model_name}|range:{self.min_reward}:{self.max_reward}|"
-            f"maze:{maze_hash}|prev:{prev_pos}|curr:{curr_pos}|key:{has_key}"
+            f"v:{self.PROMPT_VERSION}|model:{self.model_name}|"
+            f"range:{self.min_reward}:{self.max_reward}|maze:{maze_hash}|"
+            f"prev:{prev_pos}|curr:{curr_pos}|key:{has_key}"
         )
 
     def _classify_move_result(self, curr_pos, prev_pos, target, exit_pos, has_key):
@@ -315,6 +337,53 @@ Output ONLY a valid JSON object. No markdown formatting like ```json. Provide on
             "state_analysis": "The move was legal but produced no shortest-path progress toward the current goal.",
         }
 
+    def _generate_json_response(self, system_prompt, user_prompt):
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        text = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+
+        inputs = self.tokenizer([text], return_tensors="pt")
+        if torch.cuda.is_available():
+            inputs = {key: value.to(self.model.device) for key, value in inputs.items()}
+
+        with torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                max_new_tokens=self.max_new_tokens,
+                temperature=0.2,
+                do_sample=False,
+                pad_token_id=self.tokenizer.eos_token_id,
+            )
+
+        generated_ids = outputs[0][inputs["input_ids"].shape[-1]:]
+        response_text = self.tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
+        return self._parse_json_response(response_text)
+
+    def _parse_json_response(self, response_text):
+        cleaned_text = response_text.replace("```json", "").replace("```", "").strip()
+
+        try:
+            return json.loads(cleaned_text)
+        except json.JSONDecodeError:
+            pass
+
+        start = cleaned_text.find("{")
+        end = cleaned_text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            candidate = cleaned_text[start:end + 1]
+            try:
+                return json.loads(candidate)
+            except json.JSONDecodeError:
+                pass
+
+        raise ValueError(f"Failed to parse model output as JSON: {cleaned_text}")
+
     def get_reward_range(self, current_info, prev_info):
         curr_pos = tuple(int(x) for x in current_info["agent_pos"])
         prev_pos = tuple(int(x) for x in prev_info["agent_pos"])
@@ -332,9 +401,8 @@ Output ONLY a valid JSON object. No markdown formatting like ```json. Provide on
         map_string = current_info.get("global_map_string", "")
         grid = [row.split() for row in map_string.strip().splitlines() if row.strip()]
         if not grid:
-            fallback = self._fallback_reward_range("Hit Wall / Stuck", 0)
-            self.cache[cache_key] = fallback
-            self._save_cache()
+            fallback = self._fallback_reward_range("invalid_or_stuck", False)
+            self._cache_set(cache_key, fallback)
             return fallback
 
         prev_bfs = self._get_bfs_distance(grid, prev_pos, target)
@@ -375,17 +443,7 @@ Output ONLY a valid JSON object. No markdown formatting like ```json. Provide on
 
         try:
             print(f"[API Call {self.api_call_count}] Requesting reward for transition {cache_key}...")
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.0,
-            )
-
-            result = json.loads(response.choices[0].message.content)
+            result = self._generate_json_response(system_prompt, user_prompt)
             reward_min, reward_max = self._sanitize_reward_range(
                 result.get("reward_lower_bound", 0.0),
                 result.get("reward_upper_bound", 0.0),

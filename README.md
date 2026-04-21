@@ -178,7 +178,7 @@ python MazeGenerator.py
 
 This script does two things:
 
-1. prints one sample `9x9` maze in the terminal
+1. prints one sample maze in the terminal
 2. builds:
    - `dataset/train.json`
    - `dataset/val.json`
@@ -192,15 +192,15 @@ Default split sizes in the current code:
 
 Current generation behavior:
 
-- maze sizes are `9` and `25`
-- the first half of each split is `9x9`, the second half is `25x25`
+- default maze sizes are `9` and `25`
+- sizes are assigned by cycling through the configured `--sizes` list
 - generation alternates between `dfs` and `prim`
 - random seeds are fixed in the script for reproducibility
 
 Each maze record currently has these fields:
 
 - `id`: maze identifier such as `train_0`
-- `size`: maze size, currently `9` or `25`
+- `size`: maze size, any configured odd integer such as `9`, `15`, `17`, or `25`
 - `algo`: generator type, `dfs` or `prim`
 - `grid`: 2D maze grid
 
@@ -215,6 +215,18 @@ Grid encoding:
 The generator validates solvability with the required order:
 
 `start -> key -> exit`
+
+Generate datasets for `15x15` and `17x17` mazes without overwriting the default files:
+
+```bash
+python MazeGenerator.py --sizes 15 17 --output_suffix _15_17
+```
+
+This produces:
+
+- `dataset/train_15_17.json`
+- `dataset/val_15_17.json`
+- `dataset/test_15_17.json`
 
 ## 6. Dataset Inspection
 
@@ -308,7 +320,7 @@ To run the current reward-combination study, repeat training with the same setti
 Example template:
 
 ```bash
-python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000 --reward_mode sparse --run_name reward_ablation
+python main.py --algo REINFORCE --maze_size 15 --dataset dataset/train_15_17.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000 --reward_mode sparse --run_name reward_ablation
 ```
 
 Then rerun with:
@@ -348,22 +360,22 @@ For the current study, training should be treated as a controlled ablation over 
 
 ### Example commands
 
-Train `A2C` on `9x9` mazes:
+Train `A2C` on `15x15` mazes:
 
 ```bash
-python main.py --algo A2C --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000
+python main.py --algo A2C --maze_size 15 --dataset dataset/train_15_17.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000
 ```
 
-Train `REINFORCE` on `9x9` mazes:
+Train `REINFORCE` on `17x17` mazes:
 
 ```bash
-python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000
+python main.py --algo REINFORCE --maze_size 17 --dataset dataset/train_15_17.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000
 ```
 
 Train with an explicit reward mode and run name:
 
 ```bash
-python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000 --reward_mode sparse_dense_llm --run_name exp_reward_compare
+python main.py --algo REINFORCE --maze_size 15 --dataset dataset/train_15_17.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000 --reward_mode sparse_dense_llm --run_name exp_reward_compare
 ```
 
 ### Main arguments
@@ -374,7 +386,7 @@ python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 
 - `--entropy_coef`: entropy regularization coefficient, default `0.05`
 - `--max_steps`: max steps per episode, default `500`
 - `--episodes`: number of training episodes, default `2000`
-- `--maze_size`: maze size filter, choices `9` or `25`, default `9`
+- `--maze_size`: maze size filter, any odd integer present in the dataset, default `9`
 - `--seed`: random seed, default `42`
 - `--run_name`: output tag, default `default`
 - `--top_success_gifs`: number of best successful trajectories to export after training, default `3`
@@ -462,7 +474,7 @@ python test_agent.py --checkpoint checkpoints/REINFORCE/your_model.pt --dataset 
 Override maze size:
 
 ```bash
-python test_agent.py --checkpoint checkpoints/REINFORCE/your_model.pt --dataset dataset/test.json --maze_size 9 --deterministic
+python test_agent.py --checkpoint checkpoints/REINFORCE/your_model.pt --dataset dataset/test_15_17.json --maze_size 17 --deterministic
 ```
 
 ### Arguments
@@ -560,7 +572,7 @@ python run_test_all.py --deterministic --save_gifs
 Batch evaluation with explicit checkpoint:
 
 ```bash
-python run_test_all.py --checkpoint checkpoints/REINFORCE/your_model.pt --maze_size 9 --deterministic
+python run_test_all.py --checkpoint checkpoints/REINFORCE/your_model.pt --dataset dataset/test_15_17.json --maze_size 15 --deterministic
 ```
 
 ### Arguments
@@ -671,7 +683,7 @@ Recommended workflow:
 
 1. install dependencies
 2. set `OPENAI_API_KEY` if you plan to use any `llm` reward mode
-3. generate datasets with `python MazeGenerator.py`
+3. generate datasets with `python MazeGenerator.py` or `python MazeGenerator.py --sizes 15 17 --output_suffix _15_17`
 4. inspect sample mazes with `python inspect_dataset.py`
 5. train with `python main.py ...`
 6. evaluate one maze with `python test_agent.py ...` or `python run_test.py ...`
@@ -695,7 +707,7 @@ Recommended workflow:
 Train:
 
 ```bash
-python main.py --algo REINFORCE --maze_size 9 --dataset dataset/train.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000 --reward_mode sparse_dense_llm --run_name exp1
+python main.py --algo REINFORCE --maze_size 15 --dataset dataset/train_15_17.json --lr 0.001 --entropy_coef 0.05 --max_steps 500 --episodes 2000 --reward_mode sparse_dense_llm --run_name exp1
 ```
 
 Evaluate one maze:
@@ -707,5 +719,5 @@ python run_test.py --deterministic --save_gif
 Evaluate the whole test subset of one maze size:
 
 ```bash
-python run_test_all.py --deterministic
+python run_test_all.py --dataset dataset/test_15_17.json --maze_size 15 --deterministic
 ```

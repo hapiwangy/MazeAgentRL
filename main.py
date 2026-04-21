@@ -79,10 +79,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--maze_size",
-        type=str,
-        default="9",
-        choices=["9", "25"],
-        help="size of the maze in current setting 9X9 or 25X25",
+        type=int,
+        default=9,
+        help="Maze size to filter from the dataset, e.g. 9, 15, 17, 25.",
     )
     parser.add_argument(
         "--seed",
@@ -162,6 +161,8 @@ if __name__ == "__main__":
         full_dataset = json.load(f)
     target_size = int(args.maze_size)
     maze_dataset = [m for m in full_dataset if m["size"] == target_size]
+    if not maze_dataset:
+        raise ValueError(f"No mazes with size {target_size} were found in {args.dataset}.")
  
     print(f"load {args.maze_size}x{args.maze_size} numbers of dataset {len(maze_dataset)} for training")
 
@@ -174,7 +175,7 @@ if __name__ == "__main__":
         agent = REINFORCEAgent(network)
 
     optimizer = optim.Adam(network.parameters(), lr=args.lr)
-    reward_manager = RewardManager(args.reward_mode, llm_model_name="gpt-4o-mini")
+    reward_manager = RewardManager(args.reward_mode, llm_model_name="Qwen/Qwen2.5-7B-Instruct")
 
     gamma = 0.99
     num_episodes = args.episodes

@@ -1,2 +1,0 @@
-Algorithm,Checkpoint,Maze_Size,Num_Mazes,Evaluation_Seed,Deterministic,Success_Rate,Average_Steps,Average_Sparse_Reward,Average_Steps_On_Success
-REINFORCE,checkpoints/REINFORCE/reinforce_dense_llm_REINFORCE_dense_llm_size9_lr0.001_seed42_20260413_122408.pt,9,100,42,0,1.0,109.28,70.0,109.28

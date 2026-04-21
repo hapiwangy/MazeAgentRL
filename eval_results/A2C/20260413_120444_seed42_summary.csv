@@ -1,2 +1,0 @@
-Algorithm,Checkpoint,Maze_Size,Num_Mazes,Evaluation_Seed,Deterministic,Success_Rate,Average_Steps,Average_Sparse_Reward,Average_Steps_On_Success
-A2C,checkpoints/A2C/a2c_sd_dense_llm_A2C_dense_llm_size9_lr0.001_seed42_20260413_120444.pt,9,100,42,0,0.71,282.66,54.1,193.8873

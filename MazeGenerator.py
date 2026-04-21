@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import random
@@ -125,37 +126,84 @@ class MazeGenerator:
             if self.is_solvable(grid_list, s, k, e):
                 return grid_list
 
-    def build_dataset(self, num_train=1000, num_val=200, num_test=200):
-        os.makedirs("dataset", exist_ok=True)
+    def build_dataset(self, num_train=1000, num_val=200, num_test=200, sizes=None, output_dir="dataset", output_suffix=""):
+        if sizes is None:
+            sizes = [9, 25]
+        if not sizes:
+            raise ValueError("At least one maze size must be provided.")
+        if any(size % 2 == 0 for size in sizes):
+            raise ValueError("All maze sizes must be odd.")
+
+        os.makedirs(output_dir, exist_ok=True)
         splits = {"train": num_train, "val": num_val, "test": num_test}
 
         for split_name, count in splits.items():
             print(f"Generating {split_name}...")
             dataset = []
             for i in range(count):
-                size = 9 if i < count / 2 else 25
+                size = sizes[i % len(sizes)]
                 # Alternate between DFS and Prim
                 algo = "dfs" if i % 2 == 0 else "prim"
                 grid = self.generate_single_maze(size, method=algo)
                 dataset.append({"id": f"{split_name}_{i}", "size": size, "algo": algo, "grid": grid})
 
-            with open(os.path.join("dataset", f"{split_name}.json"), "w") as f:
+            filename = f"{split_name}{output_suffix}.json"
+            with open(os.path.join(output_dir, filename), "w", encoding="utf-8") as f:
                 json.dump(dataset, f, separators=(",", ":"))
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate solvable maze datasets.")
+    parser.add_argument("--train", type=int, default=1000, help="Number of training mazes.")
+    parser.add_argument("--val", type=int, default=200, help="Number of validation mazes.")
+    parser.add_argument("--test", type=int, default=200, help="Number of test mazes.")
+    parser.add_argument(
+        "--sizes",
+        type=int,
+        nargs="+",
+        default=[9, 25],
+        help="Odd maze sizes to generate, e.g. --sizes 15 17",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default="dataset",
+        help="Directory where dataset json files are written.",
+    )
+    parser.add_argument(
+        "--output_suffix",
+        type=str,
+        default="",
+        help="Optional suffix appended to output filenames, e.g. _15_17.",
+    )
+    parser.add_argument(
+        "--sample_size",
+        type=int,
+        default=None,
+        help="Optional sample maze size to print. Defaults to the first provided size.",
+    )
+    parser.add_argument("--seed", type=int, default=42, help="Random seed.")
+    args = parser.parse_args()
+
     generator = MazeGenerator()
 
     # Set seeds for reproducibility.
-    random.seed(42)
-    np.random.seed(42)
+    random.seed(args.seed)
+    np.random.seed(args.seed)
 
-    # Generate and display a sample 9x9 maze.
-    sample = generator.generate_single_maze(9)
-    print("=== Sample 9x9 Maze ===")
+    sample_size = args.sample_size or args.sizes[0]
+    sample = generator.generate_single_maze(sample_size)
+    print(f"=== Sample {sample_size}x{sample_size} Maze ===")
     chars = {0: " ", 1: "#", 2: "S", 3: "E", 4: "K"}
     for row in sample:
         print("".join([chars[val] for val in row]))
     print("\n")
 
     # Build the full dataset used by the project.
-    generator.build_dataset(num_train=1000, num_val=200, num_test=200)
+    generator.build_dataset(
+        num_train=args.train,
+        num_val=args.val,
+        num_test=args.test,
+        sizes=args.sizes,
+        output_dir=args.output_dir,
+        output_suffix=args.output_suffix,
+    )

@@ -1,0 +1,9 @@
+torch
+gymnasium
+numpy
+matplotlib
+pillow
+openai
+python-dotenv
+transformers
+accelerate

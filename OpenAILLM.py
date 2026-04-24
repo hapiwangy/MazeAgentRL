@@ -52,11 +52,8 @@ class OpenAILLM:
     PROMPT_VERSION = "v3_feature_cache_compact"
 
     def __init__(self, model_name="gpt-4o-mini", cache_file="llm_cache.json", save_every=64, verbose=None, log_every=50):
-<<<<<<< HEAD
         _try_load_dotenv()
         api_key = os.getenv("OPENAI_API_KEY")
-=======
->>>>>>> 782edc09766074deaca156230cc233e6bcb4b88a
         if not api_key:
             raise ValueError("OPENAI_API_KEY is not set. Set it in a local .env file or export it before training.")
 

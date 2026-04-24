@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import csv
 import json
 import os
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     print(f"Device: {device}")
 
     if not os.path.exists(args.dataset):
-        raise FileNotFoundError(f"can not find the dataset {args.dataset}?貌un MazeGenerator.py first")
+        raise FileNotFoundError(f"Cannot find dataset: {args.dataset}. Run MazeGenerator.py first.")
 
     with open(args.dataset, "r", encoding="utf-8") as f:
         full_dataset = json.load(f)

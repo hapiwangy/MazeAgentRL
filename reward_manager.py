@@ -16,8 +16,18 @@ class RewardManager:
         self.reward_engine = RewardEngine()
         self.llm_api = QwenLLM(model_name=llm_model_name) if reward_mode_uses_llm(reward_mode) else None
 
+    @property
+    def uses_llm(self):
+        return self.llm_api is not None
+
     def reset(self):
         self.reward_engine.reset()
+
+    def initialize_episode(self, maze_grid, key_pos, exit_pos):
+        self.reward_engine.initialize_episode(maze_grid, key_pos, exit_pos)
+
+    def enrich_info(self, info):
+        return self.reward_engine.attach_distance_features(info)
 
     def compute_step_reward(self, current_info, prev_info):
         sparse_reward = self.reward_engine.compute_sparse_reward(current_info, prev_info)
@@ -25,6 +35,7 @@ class RewardManager:
 
         llm_reward_range = {"min": 0.0, "max": 0.0, "state_analysis": "LLM disabled"}
         llm_reward = 0.0
+
         if self.llm_api is not None:
             llm_reward_range = self.llm_api.get_reward_range(current_info, prev_info)
             llm_only = self.reward_mode == "llm"
@@ -35,8 +46,6 @@ class RewardManager:
                 deterministic=llm_only,
             )
 
-            # In llm-only mode, the agent otherwise never sees large milestone signals.
-            # Add small deterministic bonuses to make the objective learnable.
             if llm_only:
                 if current_info.get("has_key", False) and not prev_info.get("has_key", False):
                     llm_reward += float(LLM_REWARD_RANGE_CONFIG["llm_only_key_bonus"])
@@ -54,5 +63,4 @@ class RewardManager:
             llm_reward=llm_reward,
         )
         total_reward = combine_rewards(self.reward_mode, reward_components)
-
         return total_reward, reward_components, llm_reward_range

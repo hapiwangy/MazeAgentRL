@@ -10,16 +10,16 @@ import torch
 from A2C import A2CAgent, A2CNetwork
 from Maze import MazeEnv
 from REINFORCE import REINFORCEAgent, REINFORCENetwork
-from utils import checkpoint_timestamp, ensure_method_dirs, save_trajectory_gif, set_global_seed
+from utils import checkpoint_timestamp, ensure_method_dirs, reconstruct_episode_frames, save_trajectory_gif, set_global_seed
 
 
-def build_agent(algo):
+def build_agent(algo, device):
     if algo == "A2C":
-        network = A2CNetwork()
-        agent = A2CAgent(network)
+        network = A2CNetwork().to(device)
+        agent = A2CAgent(network, device=device)
     elif algo == "REINFORCE":
-        network = REINFORCENetwork()
-        agent = REINFORCEAgent(network)
+        network = REINFORCENetwork().to(device)
+        agent = REINFORCEAgent(network, device=device)
     else:
         raise ValueError(f"Unsupported algorithm: {algo}")
     return network, agent
@@ -32,14 +32,15 @@ def find_latest_checkpoint(checkpoint_dir):
     return max(checkpoint_paths, key=os.path.getmtime)
 
 
-def evaluate_maze(agent, maze_data, max_steps, deterministic):
-    env = MazeEnv(maze_map=maze_data["grid"], max_steps=max_steps)
+def evaluate_maze(agent, maze_data, max_steps, deterministic, collect_frames):
+    env = MazeEnv(maze_map=maze_data["grid"], max_steps=max_steps, include_text_info=False)
     obs, info = env.reset()
     agent.reset_memory()
 
     done = False
     total_reward = 0.0
-    frames = [env.current_map.copy()]
+    positions = [info["agent_pos"]] if collect_frames else None
+    key_pick_frame_idx = None
     final_info = info
 
     while not done:
@@ -51,9 +52,10 @@ def evaluate_maze(agent, maze_data, max_steps, deterministic):
         done = terminated or truncated
         total_reward += reward
 
-        frame = env.current_map.copy()
-        frame[final_info["agent_pos"]] = 5
-        frames.append(frame)
+        if positions is not None:
+            positions.append(final_info["agent_pos"])
+            if final_info.get("picked_key_this_step") and key_pick_frame_idx is None:
+                key_pick_frame_idx = len(positions) - 1
 
     return {
         "maze_id": maze_data["id"],
@@ -61,60 +63,22 @@ def evaluate_maze(agent, maze_data, max_steps, deterministic):
         "steps": env.current_step,
         "success": int(final_info["is_success"]),
         "sparse_reward_sum": float(total_reward),
-        "frames": frames,
+        "positions": positions,
+        "key_pick_frame_idx": key_pick_frame_idx,
+        "maze_grid": maze_data["grid"],
     }
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Evaluate a trained checkpoint on every maze in dataset/test.json."
-    )
-    parser.add_argument(
-        "--checkpoint",
-        type=str,
-        default=None,
-        help="Optional checkpoint path. If omitted, the latest checkpoint under checkpoints/ is used.",
-    )
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        default="dataset/test.json",
-        help="Evaluation dataset path. Defaults to dataset/test.json.",
-    )
-    parser.add_argument(
-        "--maze_size",
-        type=int,
-        default=None,
-        help="Optional maze size filter. Defaults to checkpoint metadata.",
-    )
-    parser.add_argument(
-        "--max_steps",
-        type=int,
-        default=None,
-        help="Optional max-steps override. Defaults to checkpoint metadata.",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=None,
-        help="Optional evaluation seed override. Defaults to checkpoint seed.",
-    )
-    parser.add_argument(
-        "--run_name",
-        type=str,
-        default="eval_test_all",
-        help="Tag for evaluation outputs.",
-    )
-    parser.add_argument(
-        "--deterministic",
-        action="store_true",
-        help="Use greedy argmax action selection during evaluation.",
-    )
-    parser.add_argument(
-        "--save_gifs",
-        action="store_true",
-        help="Save one GIF per maze evaluation.",
-    )
+    parser = argparse.ArgumentParser(description="Evaluate a trained checkpoint on every maze in dataset/test.json.")
+    parser.add_argument("--checkpoint", type=str, default=None, help="Optional checkpoint path. If omitted, the latest checkpoint under checkpoints/ is used.")
+    parser.add_argument("--dataset", type=str, default="dataset/test.json", help="Evaluation dataset path. Defaults to dataset/test.json.")
+    parser.add_argument("--maze_size", type=int, default=None, help="Optional maze size filter. Defaults to checkpoint metadata.")
+    parser.add_argument("--max_steps", type=int, default=None, help="Optional max-steps override. Defaults to checkpoint metadata.")
+    parser.add_argument("--seed", type=int, default=None, help="Optional evaluation seed override. Defaults to checkpoint seed.")
+    parser.add_argument("--run_name", type=str, default="eval_test_all", help="Tag for evaluation outputs.")
+    parser.add_argument("--deterministic", action="store_true", help="Use greedy argmax action selection during evaluation.")
+    parser.add_argument("--save_gifs", action="store_true", help="Save one GIF per maze evaluation.")
     args = parser.parse_args()
 
     checkpoint_path = args.checkpoint or find_latest_checkpoint("checkpoints")
@@ -123,14 +87,15 @@ def main():
     if not os.path.exists(args.dataset):
         raise FileNotFoundError(f"Dataset not found: {args.dataset}")
 
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    checkpoint = torch.load(checkpoint_path, map_location=device)
     algo = checkpoint["algo"]
     maze_size = args.maze_size if args.maze_size is not None else checkpoint["maze_size"]
     max_steps = args.max_steps if args.max_steps is not None else checkpoint["max_steps"]
     seed = args.seed if args.seed is not None else checkpoint.get("seed", 42)
     set_global_seed(seed)
 
-    network, agent = build_agent(algo)
+    network, agent = build_agent(algo, device)
     network.load_state_dict(checkpoint["model_state_dict"])
     network.eval()
 
@@ -144,22 +109,24 @@ def main():
     eval_dir = ensure_method_dirs("eval_results", algo)
     gif_dir = ensure_method_dirs("gifs", algo)
 
+    checkpoint_name = os.path.splitext(os.path.basename(checkpoint_path))[0]
     run_id = checkpoint_timestamp(checkpoint_path) or "unknown"
-    detail_path = os.path.join(eval_dir, f"{run_id}_seed{seed}_details.csv")
-    summary_path = os.path.join(eval_dir, f"{run_id}_seed{seed}_summary.csv")
+    filename_prefix = f"{checkpoint_name}_evalsize{maze_size}_seed{seed}_{run_id}"
+    detail_path = os.path.join(eval_dir, f"{filename_prefix}_details.csv")
+    summary_path = os.path.join(eval_dir, f"{filename_prefix}_summary.csv")
 
     results = []
     for maze_data in maze_dataset:
-        result = evaluate_maze(agent, maze_data, max_steps, args.deterministic)
+        result = evaluate_maze(agent, maze_data, max_steps, args.deterministic, args.save_gifs)
         results.append(result)
 
-        if args.save_gifs:
+        if args.save_gifs and result["positions"] is not None:
             gif_name = (
                 f"{args.run_name}_{algo}_maze{result['maze_id']}_"
                 f"{result['maze_size']}x{result['maze_size']}_seed{seed}.gif"
             )
             save_trajectory_gif(
-                result["frames"],
+                reconstruct_episode_frames(result["maze_grid"], result["positions"], result["key_pick_frame_idx"]),
                 result["maze_id"],
                 filename=gif_name,
                 fps=10,

@@ -10,7 +10,6 @@ import torch
 
 
 def resolve_output_path(filename, output_dir):
-    """Return a writable path for outputs and ensure the parent directory exists."""
     if os.path.isabs(filename) or os.path.dirname(filename):
         filepath = filename
     else:
@@ -23,7 +22,6 @@ def resolve_output_path(filename, output_dir):
 
 
 def set_global_seed(seed):
-    """Set random seeds for reproducible experiments."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -37,18 +35,12 @@ def set_global_seed(seed):
 
 
 def ensure_method_dirs(base_dir, method_name):
-    """Create and return a method-specific output directory."""
     method_dir = os.path.join(base_dir, method_name)
     os.makedirs(method_dir, exist_ok=True)
     return method_dir
 
 
 def checkpoint_timestamp(checkpoint_path):
-    """Extract the trailing timestamp token from a checkpoint filename.
-
-    Expected checkpoint naming pattern ends with: _YYYYMMDD_HHMMSS.pt
-    Returns the extracted YYYYMMDD_HHMMSS string, or None if not found.
-    """
     base = os.path.basename(str(checkpoint_path))
     match = re.search(r"_(\d{8}_\d{6})(?:\.pt)?$", base)
     if match:
@@ -59,12 +51,22 @@ def checkpoint_timestamp(checkpoint_path):
     return None
 
 
-def save_trajectory_gif(frames, episode, filename="trajectory.gif", fps=50, output_dir="gifs"):
-    """
-    Save an episode trajectory as an animated GIF.
+def reconstruct_episode_frames(maze_grid, positions, key_pick_step=None):
+    frames = []
+    base_map = np.asarray(maze_grid, dtype=np.int8)
+    key_pos = tuple(np.argwhere(base_map == 4)[0])
 
-    The fps argument controls playback speed. Lower values make the trajectory easier to inspect.
-    """
+    for idx, pos in enumerate(positions):
+        frame = base_map.copy()
+        if key_pick_step is not None and idx >= key_pick_step:
+            frame[key_pos] = 0
+        frame[pos] = 5
+        frames.append(frame)
+
+    return frames
+
+
+def save_trajectory_gif(frames, episode, filename="trajectory.gif", fps=50, output_dir="gifs"):
     fig, ax = plt.subplots(figsize=(5, 5))
     ax.axis("off")
 
@@ -98,10 +100,6 @@ def save_trajectory_gif(frames, episode, filename="trajectory.gif", fps=50, outp
 
 
 def plot_learning_curves(rewards, steps, successes, plot_filename, window=100, output_dir="plots"):
-    """
-    Plot smoothed learning curves for reward, episode length, and success rate.
-    """
-
     def moving_average(data, w):
         if len(data) < w:
             return data

@@ -1,18 +1,16 @@
-import hashlib
+import atexit
 import json
 import os
 import time
-import atexit
-from collections import deque
 from pathlib import Path
 
+import numpy as np
 from openai import OpenAI
 
 from reward_config import LLM_REWARD_RANGE_CONFIG
 
 
 def _load_env_file(dotenv_path: Path) -> None:
-    """Best-effort .env loader without extra dependencies."""
     try:
         if not dotenv_path.exists() or not dotenv_path.is_file():
             return
@@ -37,7 +35,6 @@ def _load_env_file(dotenv_path: Path) -> None:
 
 
 def _try_load_dotenv() -> None:
-    """Load .env from cwd or the current file directory."""
     try:
         from dotenv import load_dotenv  # type: ignore
 
@@ -52,27 +49,35 @@ def _try_load_dotenv() -> None:
 
 
 class OpenAILLM:
-    PROMPT_VERSION = "v2_move_type_cache"
+    PROMPT_VERSION = "v3_feature_cache_compact"
 
-    def __init__(self, model_name="gpt-4o-mini", cache_file="llm_cache.json", save_every=64):
+    def __init__(self, model_name="gpt-4o-mini", cache_file="llm_cache.json", save_every=64, verbose=None, log_every=50):
+<<<<<<< HEAD
         _try_load_dotenv()
         api_key = os.getenv("OPENAI_API_KEY")
+=======
+>>>>>>> 782edc09766074deaca156230cc233e6bcb4b88a
         if not api_key:
-            raise ValueError(
-                "OPENAI_API_KEY is not set. Set it in a local .env file or export it before training."
-            )
+            raise ValueError("OPENAI_API_KEY is not set. Set it in a local .env file or export it before training.")
+
+        cache_path = Path(cache_file)
+        if not cache_path.is_absolute():
+            cache_path = Path(__file__).resolve().parent / cache_path
 
         self.client = OpenAI(api_key=api_key)
         self.model_name = model_name
         self.min_reward = float(LLM_REWARD_RANGE_CONFIG["step_min"])
         self.max_reward = float(LLM_REWARD_RANGE_CONFIG["step_max"])
-        self.cache_file = cache_file
+        self.cache_file = str(cache_path)
         self.cache = self._load_cache()
         self.save_every = int(save_every)
+        self.verbose = bool(int(os.getenv("OPENAI_LLM_VERBOSE", "0"))) if verbose is None else bool(verbose)
+        self.log_every = max(1, int(log_every))
         self.pending_cache_writes = 0
         self.api_call_count = 0
         self.cache_hit_count = 0
         atexit.register(self._flush_cache_on_exit)
+        self.system_prompt = self._build_system_prompt()
 
     def _build_system_prompt(self):
         return (
@@ -90,8 +95,8 @@ class OpenAILLM:
         delta_distance,
         move_type,
         entered_dead_end,
-        local_sensation,
-        map_string,
+        prev_degree,
+        curr_degree,
     ):
         return f"""
 You are an expert Reinforcement Learning reward-shaping AI. Your goal is to evaluate a maze-solving agent's recent step and output a structured reward interval.
@@ -104,16 +109,12 @@ You are an expert Reinforcement Learning reward-shaping AI. Your goal is to eval
 - Distance Delta: {delta_distance} (Negative means closer along the optimal path, Positive means farther)
 - Move Type: {move_type}
 - Entered Dead-End Corridor: {entered_dead_end}
-
-### Local Sensation (Immediate 3x3 Grid Around Agent)
-{local_sensation}
-
-### Global Map Topology
-{map_string}
+- Open Neighbors Before Move: {prev_degree}
+- Open Neighbors After Move: {curr_degree}
 
 ### Evaluation Heuristics
 You must output a continuous reward interval [reward_lower_bound, reward_upper_bound] strictly between {self.min_reward} and {self.max_reward}.
-Base your evaluation on the Move Type, Distance Delta, and the Local Sensation:
+Base your evaluation on the Move Type, Distance Delta, dead-end status, and local branching factor:
 1. CRITICAL EVENTS: Reaching the Key (Sub-Goal) or reaching the Exit WITH the Key (Ultimate Goal) is a success. Maximize the interval.
 2. PENALTIES: Hitting a wall, moving into a dead-end, or hitting the Exit WITHOUT the Key represents a wasted or invalid step. Penalize heavily.
 3. PROGRESS: If Move Type is progress and Distance Delta is negative, the agent is moving toward its CURRENT target. Reward positively.
@@ -143,6 +144,9 @@ Output ONLY a valid JSON object. No markdown formatting like ```json. Provide on
 
     def _save_cache(self):
         try:
+            cache_dir = os.path.dirname(self.cache_file)
+            if cache_dir:
+                os.makedirs(cache_dir, exist_ok=True)
             with open(self.cache_file, "w", encoding="utf-8") as file:
                 json.dump(self.cache, file, indent=4)
             self.pending_cache_writes = 0
@@ -168,11 +172,7 @@ Output ONLY a valid JSON object. No markdown formatting like ```json. Provide on
                 cached_value.get("thought_process", "cached reward range"),
             )
             lower_bound, upper_bound = self._sanitize_reward_range(lower_bound, upper_bound)
-            return {
-                "min": lower_bound,
-                "max": upper_bound,
-                "state_analysis": state_analysis,
-            }
+            return {"min": lower_bound, "max": upper_bound, "state_analysis": state_analysis}
 
         reward_value = float(cached_value)
         reward_value, reward_value = self._sanitize_reward_range(reward_value, reward_value)
@@ -190,70 +190,28 @@ Output ONLY a valid JSON object. No markdown formatting like ```json. Provide on
             lower, upper = upper, lower
         return lower, upper
 
-    def _get_bfs_distance(self, grid, start, target):
-        if start == target:
-            return 0
-
-        rows, cols = len(grid), len(grid[0])
-        queue = deque([(start[0], start[1], 0)])
-        visited = {tuple(start)}
-
-        while queue:
-            row, col, dist = queue.popleft()
-            if (row, col) == tuple(target):
-                return dist
-
-            for delta_row, delta_col in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                next_row, next_col = row + delta_row, col + delta_col
-                if 0 <= next_row < rows and 0 <= next_col < cols and (next_row, next_col) not in visited:
-                    if grid[next_row][next_col] != "#":
-                        visited.add((next_row, next_col))
-                        queue.append((next_row, next_col, dist + 1))
-
-        return 10**9
-
-    def _get_local_sensation(self, grid, pos):
+    def _count_open_neighbors(self, maze_grid, pos):
         row, col = pos
-        rows, cols = len(grid), len(grid[0])
-        local_grid = []
-
-        for delta_row in [-1, 0, 1]:
-            current_row = []
-            for delta_col in [-1, 0, 1]:
-                next_row, next_col = row + delta_row, col + delta_col
-                if 0 <= next_row < rows and 0 <= next_col < cols:
-                    current_row.append(grid[next_row][next_col])
-                else:
-                    current_row.append("#")
-            local_grid.append("".join(current_row))
-
-        return "\n".join(local_grid)
-
-    def _count_open_neighbors(self, grid, pos):
-        row, col = pos
-        rows, cols = len(grid), len(grid[0])
+        rows, cols = maze_grid.shape
         open_neighbors = 0
-        for delta_row, delta_col in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+        for delta_row, delta_col in ((-1, 0), (1, 0), (0, -1), (0, 1)):
             next_row, next_col = row + delta_row, col + delta_col
-            if 0 <= next_row < rows and 0 <= next_col < cols and grid[next_row][next_col] != "#":
+            if 0 <= next_row < rows and 0 <= next_col < cols and maze_grid[next_row, next_col] != 1:
                 open_neighbors += 1
         return open_neighbors
 
-    def _entered_dead_end(self, grid, prev_pos, curr_pos, target):
+    def _entered_dead_end(self, maze_grid, prev_pos, curr_pos, target):
         if curr_pos == prev_pos or curr_pos == target:
             return False
-        prev_degree = self._count_open_neighbors(grid, prev_pos)
-        curr_degree = self._count_open_neighbors(grid, curr_pos)
+        prev_degree = self._count_open_neighbors(maze_grid, prev_pos)
+        curr_degree = self._count_open_neighbors(maze_grid, curr_pos)
         return curr_degree <= 1 and prev_degree > 1
 
-    def _build_cache_key(self, current_info, prev_pos, curr_pos, has_key):
-        layout_string = current_info.get("maze_layout_string") or ""
-        if not layout_string:
-            layout_string = current_info.get("global_map_string", "").replace("A", ".")
-        maze_hash = hashlib.sha1(layout_string.encode("utf-8")).hexdigest()[:10]
+    def _build_cache_key(self, has_key, prev_bfs, curr_bfs, delta_distance, move_type, entered_dead_end, prev_degree, curr_degree):
         return (
             f"v:{self.PROMPT_VERSION}|model:{self.model_name}|range:{self.min_reward}:{self.max_reward}|"
-            f"maze:{maze_hash}|prev:{prev_pos}|curr:{curr_pos}|key:{has_key}"
+            f"key:{has_key}|move:{move_type}|prev_bfs:{prev_bfs}|curr_bfs:{curr_bfs}|"
+            f"delta:{delta_distance}|dead_end:{entered_dead_end}|prev_deg:{prev_degree}|curr_deg:{curr_degree}"
         )
 
     def _classify_move_result(self, curr_pos, prev_pos, target, exit_pos, has_key):
@@ -316,48 +274,41 @@ Output ONLY a valid JSON object. No markdown formatting like ```json. Provide on
         }
 
     def get_reward_range(self, current_info, prev_info):
-        curr_pos = tuple(int(x) for x in current_info["agent_pos"])
-        prev_pos = tuple(int(x) for x in prev_info["agent_pos"])
+        curr_pos = tuple(current_info["agent_pos"])
+        prev_pos = tuple(prev_info["agent_pos"])
         has_key = bool(current_info["has_key"])
-        target = tuple(int(x) for x in (current_info["exit_pos"] if has_key else current_info["key_pos"]))
-        exit_pos = tuple(int(x) for x in current_info["exit_pos"])
-
-        cache_key = self._build_cache_key(current_info, prev_pos, curr_pos, has_key)
+        target = tuple(current_info["exit_pos"] if has_key else current_info["key_pos"])
+        exit_pos = tuple(current_info["exit_pos"])
+        prev_bfs = prev_info["exit_distance"] if has_key else prev_info["key_distance"]
+        curr_bfs = current_info["exit_distance"] if has_key else current_info["key_distance"]
+        delta_distance = curr_bfs - prev_bfs
+        move_result_string = self._classify_move_result(curr_pos, prev_pos, target, exit_pos, has_key)
+        move_type = self._classify_move_type(curr_pos, prev_pos, target, exit_pos, has_key, delta_distance)
+        maze_grid = np.asarray(current_info["maze_grid"])
+        prev_degree = self._count_open_neighbors(maze_grid, prev_pos)
+        curr_degree = self._count_open_neighbors(maze_grid, curr_pos)
+        entered_dead_end = self._entered_dead_end(maze_grid, prev_pos, curr_pos, target)
+        cache_key = self._build_cache_key(
+            has_key=has_key,
+            prev_bfs=prev_bfs,
+            curr_bfs=curr_bfs,
+            delta_distance=delta_distance,
+            move_type=move_type,
+            entered_dead_end=entered_dead_end,
+            prev_degree=prev_degree,
+            curr_degree=curr_degree,
+        )
         if cache_key in self.cache:
             self.cache_hit_count += 1
-            if self.cache_hit_count % 1000 == 0:
+            if self.verbose and self.cache_hit_count % 1000 == 0:
                 print(f"[Cache Hit] Reused {self.cache_hit_count} cached rewards so far.")
             return self._normalize_cached_value(self.cache[cache_key])
-
-        map_string = current_info.get("global_map_string", "")
-        grid = [row.split() for row in map_string.strip().splitlines() if row.strip()]
-        if not grid:
-            fallback = self._fallback_reward_range("Hit Wall / Stuck", 0)
-            self.cache[cache_key] = fallback
-            self._save_cache()
-            return fallback
-
-        prev_bfs = self._get_bfs_distance(grid, prev_pos, target)
-        curr_bfs = self._get_bfs_distance(grid, curr_pos, target)
-        delta_distance = curr_bfs - prev_bfs
-        local_sensation = self._get_local_sensation(grid, curr_pos)
-        move_result_string = self._classify_move_result(curr_pos, prev_pos, target, exit_pos, has_key)
-        move_type = self._classify_move_type(
-            curr_pos,
-            prev_pos,
-            target,
-            exit_pos,
-            has_key,
-            delta_distance,
-        )
-        entered_dead_end = self._entered_dead_end(grid, prev_pos, curr_pos, target)
 
         if move_type in {"goal_reached", "invalid_exit_without_key", "invalid_or_stuck"}:
             reward_range = self._fallback_reward_range(move_type, entered_dead_end=False)
             self._cache_set(cache_key, reward_range)
             return reward_range
 
-        system_prompt = self._build_system_prompt()
         user_prompt = self._build_user_prompt(
             has_key=has_key,
             move_result_string=move_result_string,
@@ -366,25 +317,25 @@ Output ONLY a valid JSON object. No markdown formatting like ```json. Provide on
             delta_distance=delta_distance,
             move_type=move_type,
             entered_dead_end=entered_dead_end,
-            local_sensation=local_sensation,
-            map_string=map_string,
+            prev_degree=prev_degree,
+            curr_degree=curr_degree,
         )
 
         self.api_call_count += 1
-        start_time = time.time()
+        start_time = time.perf_counter()
 
         try:
-            print(f"[API Call {self.api_call_count}] Requesting reward for transition {cache_key}...")
+            if self.verbose:
+                print(f"[API Call {self.api_call_count}] Requesting reward for transition {cache_key}...")
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 response_format={"type": "json_object"},
                 messages=[
-                    {"role": "system", "content": system_prompt},
+                    {"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.0,
             )
-
             result = json.loads(response.choices[0].message.content)
             reward_min, reward_max = self._sanitize_reward_range(
                 result.get("reward_lower_bound", 0.0),
@@ -395,22 +346,19 @@ Output ONLY a valid JSON object. No markdown formatting like ```json. Provide on
                 "max": reward_max,
                 "state_analysis": str(result.get("state_analysis", "")).strip(),
             }
-
             self._cache_set(cache_key, reward_range)
-
-            latency = time.time() - start_time
-            print(
-                f"[API Response] Reward range: "
-                f"[{reward_range['min']}, {reward_range['max']}] "
-                f"(latency: {latency:.2f}s)"
-            )
+            latency = time.perf_counter() - start_time
+            if self.verbose:
+                print(f"[API Response] Reward range: [{reward_range['min']}, {reward_range['max']}] (latency: {latency:.2f}s)")
+            elif self.api_call_count % self.log_every == 0:
+                print(
+                    f"[LLM] calls={self.api_call_count} cache_hits={self.cache_hit_count} "
+                    f"last_latency={latency:.2f}s range=[{reward_range['min']}, {reward_range['max']}]"
+                )
             return reward_range
         except Exception as exc:
             print(f"[LLM API Error] {exc}")
             fallback = self._fallback_reward_range(move_type, entered_dead_end)
-            fallback["min"], fallback["max"] = self._sanitize_reward_range(
-                fallback["min"],
-                fallback["max"],
-            )
+            fallback["min"], fallback["max"] = self._sanitize_reward_range(fallback["min"], fallback["max"])
             self._cache_set(cache_key, fallback)
             return fallback
